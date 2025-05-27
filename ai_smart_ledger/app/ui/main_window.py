@@ -8,10 +8,11 @@ Created: 2025-05-25
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QStackedWidget, 
     QMenuBar, QMenu, QLabel, QPushButton, QTableWidget,
-    QTableWidgetItem, QHBoxLayout, QHeaderView
+    QTableWidgetItem, QHBoxLayout, QHeaderView, QDialog,
+    QTextEdit, QDialogButtonBox, QScrollArea
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QFont, QPixmap
 
 from ..core.file_handler import FileHandler
 from ..core.file_parser import FileParser
@@ -280,6 +281,7 @@ class MainWindow(QMainWindow):
             }
             QTableWidget::item:hover {
                 background-color: #ecf0f1;
+                color: #2c3e50;
             }
             QHeaderView::section {
                 background-color: #34495e;
@@ -423,6 +425,7 @@ class MainWindow(QMainWindow):
         
         help_guide_action = QAction('파일 형식 안내', self)
         help_guide_action.setStatusTip('지원되는 파일 형식에 대한 안내를 표시합니다')
+        help_guide_action.triggered.connect(self.show_file_format_guide)  # 슬라이스 1.6: 파일 형식 안내 액션 연결
         help_menu.addAction(help_guide_action)
         
         help_menu.addSeparator()
@@ -524,4 +527,179 @@ class MainWindow(QMainWindow):
                 """)
                 print(f"❌ 파일 검증 실패: {message}")
         else:
-            print("📂 파일 선택 취소됨") 
+            print("📂 파일 선택 취소됨")
+    
+    # 슬라이스 1.6: 파일 형식 안내 팝업 기능
+    def show_file_format_guide(self):
+        """슬라이스 1.6: 파일 형식 안내 대화상자를 표시합니다"""
+        print("📖 파일 형식 안내 팝업 표시")
+        
+        try:
+            # 파일 형식 안내 대화상자 생성
+            dialog = self.create_file_format_dialog()
+            
+            # 대화상자 표시 (모달)
+            dialog.exec()
+            
+            print("✅ 파일 형식 안내 팝업 표시 완료")
+            
+        except Exception as e:
+            print(f"❌ 파일 형식 안내 팝업 표시 중 오류: {e}")
+    
+    def create_file_format_dialog(self):
+        """슬라이스 1.6: 파일 형식 안내 대화상자를 생성합니다"""
+        # 대화상자 생성
+        dialog = QDialog(self)
+        dialog.setWindowTitle("파일 형식 안내")
+        dialog.setModal(True)
+        dialog.resize(600, 500)
+        
+        # 레이아웃 설정
+        layout = QVBoxLayout()
+        dialog.setLayout(layout)
+        
+        # 제목 레이블
+        title_label = QLabel("📁 지원되는 파일 형식 안내")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_font = QFont()
+        title_font.setPointSize(16)
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("""
+            color: #2c3e50;
+            margin: 20px;
+            padding: 10px;
+        """)
+        layout.addWidget(title_label)
+        
+        # 스크롤 영역 생성
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        
+        # 내용 위젯 생성
+        content_widget = QWidget()
+        content_layout = QVBoxLayout()
+        content_widget.setLayout(content_layout)
+        
+        # 안내 내용 생성
+        guide_text = self._create_file_format_guide_content()
+        
+        guide_label = QTextEdit()
+        guide_label.setHtml(guide_text)
+        guide_label.setReadOnly(True)
+        guide_label.setStyleSheet("""
+            QTextEdit {
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                padding: 15px;
+                font-size: 13px;
+                line-height: 1.5;
+                color: #2c3e50;
+            }
+        """)
+        content_layout.addWidget(guide_label)
+        
+        # 스크롤 영역에 내용 위젯 설정
+        scroll_area.setWidget(content_widget)
+        layout.addWidget(scroll_area)
+        
+        # 확인 버튼
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok)
+        button_box.accepted.connect(dialog.accept)
+        button_box.setStyleSheet("""
+            QPushButton {
+                font-size: 14px;
+                padding: 8px 20px;
+                background-color: #3498db;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                margin: 10px;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QPushButton:pressed {
+                background-color: #21618c;
+            }
+        """)
+        layout.addWidget(button_box)
+        
+        return dialog
+    
+    def _create_file_format_guide_content(self):
+        """슬라이스 1.6: 파일 형식 안내 대화상자의 HTML 내용을 생성합니다"""
+        return """
+        <div style="color: #2c3e50;">
+        <h3 style="color: #2c3e50; margin-bottom: 15px;">🎯 지원되는 파일 형식</h3>
+        
+        <div style="margin-bottom: 20px;">
+            <h4 style="color: #e74c3c; margin-bottom: 10px;">📄 CSV 파일 (권장)</h4>
+            <ul style="margin-left: 20px; line-height: 1.6;">
+                <li><strong>확장자:</strong> .csv</li>
+                <li><strong>인코딩:</strong> UTF-8 (권장)</li>
+                <li><strong>구분자:</strong> 쉼표(,)</li>
+                <li><strong>헤더:</strong> 첫 번째 행에 컬럼명 포함</li>
+                <li><strong>예시:</strong> 날짜,내용,금액,카테고리</li>
+            </ul>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <h4 style="color: #27ae60; margin-bottom: 10px;">📊 Excel 파일</h4>
+            <ul style="margin-left: 20px; line-height: 1.6;">
+                <li><strong>확장자:</strong> .xls, .xlsx</li>
+                <li><strong>시트:</strong> 첫 번째 시트만 읽기</li>
+                <li><strong>헤더:</strong> 첫 번째 행에 컬럼명 포함</li>
+                <li><strong>데이터:</strong> 두 번째 행부터 거래내역</li>
+            </ul>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <h4 style="color: #f39c12; margin-bottom: 10px;">⚠️ 파일 제한사항</h4>
+            <ul style="margin-left: 20px; line-height: 1.6;">
+                <li><strong>최대 크기:</strong> 50MB</li>
+                <li><strong>지원하지 않는 형식:</strong> .txt, .doc, .pdf 등</li>
+                <li><strong>특수문자:</strong> 파일명에 특수문자 주의</li>
+            </ul>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <h4 style="color: #8e44ad; margin-bottom: 10px;">💡 권장 컬럼 구성</h4>
+            <ul style="margin-left: 20px; line-height: 1.6;">
+                <li><strong>날짜:</strong> YYYY-MM-DD 형식 (예: 2023-12-25)</li>
+                <li><strong>내용/적요:</strong> 거래 설명 (AI 분류에 중요)</li>
+                <li><strong>금액:</strong> 숫자만 입력 (양수: 수입, 음수: 지출)</li>
+                <li><strong>카테고리:</strong> 기존 분류가 있다면 포함</li>
+            </ul>
+        </div>
+        
+        <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <h4 style="color: #27ae60; margin-bottom: 10px;">✅ 올바른 파일 예시</h4>
+            <code style="display: block; background-color: white; padding: 10px; border-radius: 4px; font-family: monospace;">
+날짜,내용,금액,카테고리<br>
+2023-12-01,스타벅스 아메리카노,4500,식비<br>
+2023-12-01,지하철 요금,-1350,교통비<br>
+2023-12-02,월급,2500000,급여
+            </code>
+        </div>
+        
+        <div style="background-color: #fdf2f2; padding: 15px; border-radius: 8px; border-left: 4px solid #e74c3c;">
+            <h4 style="color: #e74c3c; margin-bottom: 10px;">🚨 문제 해결</h4>
+            <p style="margin-bottom: 8px;"><strong>파일이 열리지 않는 경우:</strong></p>
+            <ul style="margin-left: 20px; margin-bottom: 15px;">
+                <li>파일 크기가 50MB 이하인지 확인</li>
+                <li>확장자가 .csv, .xls, .xlsx인지 확인</li>
+                <li>Excel 파일이 열려있지 않은지 확인</li>
+            </ul>
+            <p style="margin-bottom: 8px;"><strong>데이터가 이상하게 표시되는 경우:</strong></p>
+            <ul style="margin-left: 20px;">
+                <li>CSV 파일의 인코딩을 UTF-8로 저장</li>
+                <li>첫 번째 행에 헤더가 있는지 확인</li>
+                <li>금액 컬럼에 숫자만 입력되었는지 확인</li>
+            </ul>
+        </div>
+        </div>
+        """ 

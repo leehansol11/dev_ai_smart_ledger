@@ -110,15 +110,15 @@ ai_smart_ledger/
 - [x] **로직:** CSV/Excel 파싱 중 발생하는 주요 예외(형식 오류, 컬럼 없음 등) 처리 로직 보강 [PRD 4.1]
 - [x] **UI:** 오류 발생 시 사용자에게 `QMessageBox` 등으로 명확한 알림 표시
 - [x] **테스트:** 다양한 오류 상황 재현 및 메시지 확인
-- [ ] **커밋:** "Feat: Implement file size/format validation and enhance error handling (Slice 1.5)"
+- [x] **커밋:** "Feat: Implement file size/format validation and enhance error handling (Slice 1.5)"
 
 ### 슬라이스 1.6: 파일 형식 안내 팝업 기능
 
 - **🎯 목표:** 사용자가 파일 형식 가이드라인을 볼 수 있도록 안내 팝업 기능을 구현한다. (설정 연동은 나중에)
-- [ ] **UI:** 파일 형식 안내 팝업창(`QDialog` 또는 `QMessageBox`) 디자인 및 내용(텍스트, 예시 이미지 경로) 구성 [PRD 2.1, 2.5.G]
-- [ ] **UI:** 메인 메뉴 또는 특정 버튼에 "파일 형식 안내" 액션 추가
-- [ ] **로직:** 액션 클릭 시 안내 팝업창 표시
-- [ ] **테스트:** 팝업창이 잘 뜨고 내용이 올바른지 확인
+- [x] **UI:** 파일 형식 안내 팝업창(`QDialog` 또는 `QMessageBox`) 디자인 및 내용(텍스트, 예시 이미지 경로) 구성 [PRD 2.1, 2.5.G]
+- [x] **UI:** 메인 메뉴 또는 특정 버튼에 "파일 형식 안내" 액션 추가
+- [x] **로직:** 액션 클릭 시 안내 팝업창 표시
+- [x] **테스트:** 팝업창이 잘 뜨고 내용이 올바른지 확인
 - [ ] **커밋:** "Feat: Implement file format guide popup (Slice 1.6)"
 
 ## 2단계: 거래내역 수동 분류 기능 (PRD 2.2)
