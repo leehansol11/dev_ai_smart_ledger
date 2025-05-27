@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 
 from ..core.file_handler import FileHandler
+from ..core.file_parser import FileParser
 
 
 class MainWindow(QMainWindow):
@@ -23,6 +24,12 @@ class MainWindow(QMainWindow):
         
         # 슬라이스 1.1: 파일 핸들러 초기화
         self.file_handler = FileHandler()
+        
+        # 슬라이스 1.2: 파일 파서 초기화
+        self.file_parser = FileParser()
+        
+        # 현재 선택된 파일 경로 저장
+        self.selected_file_path = None
         
         self.init_ui()
         
@@ -257,6 +264,37 @@ class MainWindow(QMainWindow):
         help_about_action.setStatusTip('프로그램 정보를 표시합니다')
         help_menu.addAction(help_about_action)
     
+    def parse_and_display_preview(self, file_path: str) -> None:
+        """
+        슬라이스 1.2: 선택된 CSV 파일의 내용을 파싱하여 콘솔에 출력
+        
+        Args:
+            file_path: 파싱할 CSV 파일 경로
+        """
+        print(f"\n🔍 파일 파싱 시작: {file_path}")
+        
+        try:
+            # CSV 파일 파싱 (첫 5행)
+            result = self.file_parser.parse_csv_preview(file_path, max_rows=5)
+            
+            if result['success']:
+                print("✅ CSV 파싱 성공!")
+                
+                # 콘솔에 파싱 결과 출력
+                self.file_parser.print_csv_preview(result)
+                
+                # 현재 선택된 파일 경로 저장
+                self.selected_file_path = file_path
+                
+                print(f"📝 총 {result['total_rows']}개의 데이터 행 발견")
+                print(f"📊 {len(result['headers'])}개의 컬럼 발견: {', '.join(result['headers'])}")
+                
+            else:
+                print(f"❌ CSV 파싱 실패: {result['error']}")
+                
+        except Exception as e:
+            print(f"❌ 파싱 중 예외 발생: {e}")
+
     def on_load_file_clicked(self):
         """슬라이스 1.1: 거래내역 파일 불러오기 버튼 클릭 이벤트 처리"""
         print("🔄 파일 선택 시작...")
@@ -281,6 +319,10 @@ class MainWindow(QMainWindow):
                     border-radius: 4px;
                 """)
                 print(f"✅ 파일 선택 완료: {file_path}")
+                
+                # 슬라이스 1.2: 파일 선택 완료 후 자동으로 파싱 및 콘솔 출력 실행
+                self.parse_and_display_preview(file_path)
+                
             else:
                 # 오류 시 기본 상태로 되돌리기
                 self.file_path_label.setText("파일을 선택해주세요.")
