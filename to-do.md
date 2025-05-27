@@ -33,12 +33,12 @@ tags:
 
 ## 0단계: 프로젝트 준비 및 기본 환경 설정
 
-- [ ] Git 저장소 생성 및 초기 커밋 (`.gitignore` 파일 포함)
-- [ ] Python 개발 환경 구성 (권장: 가상환경 사용)
-    - [ ] PySide6 (또는 PyQt5) 설치
-    - [ ] `requests` 라이브러리 설치 (OpenAI API 연동용)
-    - [ ] `openpyxl` 라이브러리 설치 (Excel 파일 처리용)
-- [ ] 프로젝트 폴더 구조 기본 설계 (예: `ai_smart_ledger/app/(ui/, core/, db/, assets/), tests/, main.py`)
+- [x] Git 저장소 생성 및 초기 커밋 (`.gitignore` 파일 포함)
+- [x] Python 개발 환경 구성 (권장: 가상환경 사용)
+    - [x] PySide6 (또는 PyQt5) 설치
+    - [x] `requests` 라이브러리 설치 (OpenAI API 연동용)
+    - [x] `openpyxl` 라이브러리 설치 (Excel 파일 처리용)
+- [x] 프로젝트 폴더 구조 기본 설계 (예: `ai_smart_ledger/app/(ui/, core/, db/, assets/), tests/, main.py`)
 
 ai_smart_ledger/
 ├── app/
@@ -49,12 +49,12 @@ ai_smart_ledger/
 ├── tests/           # 테스트 파일들
 └── main.py          # 메인 실행 파일
 
-- [ ] SQLite 데이터베이스 파일 (`AISmartLedger.db`) 생성 및 DB 연결 유틸리티 함수 작성 [PRD 3.2]
-    - [ ] `categories` 테이블 스키마 정의 및 생성 스크립트 작성 [PRD 3.2.5]
-        - [ ] 기본 카테고리 데이터(`3.2.5`의 트리 구조)를 `categories` 테이블에 삽입하는 초기화 스크립트 작성
-    - [ ] `transactions` 테이블 스키마 정의 및 생성 스크립트 작성 [PRD 3.2.1]
-    - [ ] `ai_learning_patterns` 테이블 스키마 정의 및 생성 스크립트 작성 [PRD 3.2.2]
-    - [ ] `settings` 테이블 스키마 정의 및 생성 스크립트 작성 [PRD 3.2.3]
+- [x] SQLite 데이터베이스 파일 (`AISmartLedger.db`) 생성 및 DB 연결 유틸리티 함수 작성 [PRD 3.2]
+    - [x] `categories` 테이블 스키마 정의 및 생성 스크립트 작성 [PRD 3.2.5]
+        - [x] 기본 카테고리 데이터(`3.2.5`의 트리 구조)를 `categories` 테이블에 삽입하는 초기화 스크립트 작성
+    - [x] `transactions` 테이블 스키마 정의 및 생성 스크립트 작성 [PRD 3.2.1]
+    - [x] `ai_learning_patterns` 테이블 스키마 정의 및 생성 스크립트 작성 [PRD 3.2.2]
+    - [x] `settings` 테이블 스키마 정의 및 생성 스크립트 작성 [PRD 3.2.3]
 - [ ] 메인 애플리케이션 창 (`QMainWindow`) 기본 UI 틀 구현 [PRD 3.4]
     - [ ] 프로그램 제목 설정 ("AI 스마트 가계부")
     - [ ] 기본 메뉴 바 구조 (파일, 보기, 도구, 도움말 - 실제 기능은 나중에 연결)

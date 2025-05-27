@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- 개발(dev), 테스트(test), 운영(prod) 환경별로 별도의 데이터베이스(databases) 사용
