@@ -86,21 +86,21 @@ ai_smart_ledger/
 ### 슬라이스 1.3: 파싱된 CSV 데이터 화면 표에 표시 (기본)
 
 - **🎯 목표:** 슬라이스 1.2에서 파싱된 CSV 데이터를 메인 창의 테이블 위젯에 표시한다.
-- [ ] **UI:** 메인 창에 거래내역을 표시할 테이블 위젯 (`QTableWidget`) 추가 [PRD 2.2, 3.4]
-- [ ] **연결:** 파싱된 CSV 데이터(헤더 및 첫 5행)를 `QTableWidget`에 채워 넣는 로직 구현
-- [ ] **테스트:** UI 테이블에 데이터가 올바르게 표시되는지 확인
-- [ ] **커밋:** "Feat: Display parsed CSV data (first 5 rows) in UI table (Slice 1.3)"
+- [x] **UI:** 메인 창에 거래내역을 표시할 테이블 위젯 (`QTableWidget`) 추가 [PRD 2.2, 3.4]
+- [x] **연결:** 파싱된 CSV 데이터(헤더 및 첫 5행)를 `QTableWidget`에 채워 넣는 로직 구현
+- [x] **테스트:** UI 테이블에 데이터가 올바르게 표시되는지 확인
+- [x] **커밋:** "Feat: Display parsed CSV data (first 5 rows) in UI table (Slice 1.3)"
 
 ### 슬라이스 1.4: Excel 파일 (XLS, XLSX) 지원 추가
 
 - **🎯 목표:** CSV 파일과 동일하게 Excel 파일도 선택하여 첫 5행을 파싱하고 화면 표에 표시한다.
-- [ ] **로직:** Excel 파일 파싱 함수 구현 (`app/core/file_parser.py`, `openpyxl` 사용) [PRD 2.1]
-    - [ ] 첫 번째 시트 데이터 읽기
-    - [ ] 헤더 및 데이터 행 추출 (첫 5행)
-- [ ] **로직:** 파일 선택 시 CSV/Excel 확장자 모두 허용하도록 수정
-- [ ] **연결:** 파일 확장자에 따라 적절한 파싱 함수 호출 및 UI 테이블 업데이트
-- [ ] **테스트:** XLS, XLSX 파일로 기능 검증
-- [ ] **커밋:** "Feat: Add Excel (XLS, XLSX) file parsing and display support (Slice 1.4)"
+- [x] **로직:** Excel 파일 파싱 함수 구현 (`app/core/file_parser.py`, `openpyxl` 사용) [PRD 2.1]
+    - [x] 첫 번째 시트 데이터 읽기
+    - [x] 헤더 및 데이터 행 추출 (첫 5행)
+- [x] **로직:** 파일 선택 시 CSV/Excel 확장자 모두 허용하도록 수정
+- [x] **연결:** 파일 확장자에 따라 적절한 파싱 함수 호출 및 UI 테이블 업데이트
+- [x] **테스트:** XLS, XLSX 파일로 기능 검증
+- [x] **커밋:** "Feat: Add Excel (XLS, XLSX) file parsing and display support (Slice 1.4)"
 
 ### 슬라이스 1.5: 파일 크기(50MB) 및 형식 검증, 오류 처리 강화
 

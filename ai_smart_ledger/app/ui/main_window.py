@@ -433,19 +433,33 @@ class MainWindow(QMainWindow):
     
     def parse_and_display_preview(self, file_path: str) -> None:
         """
-        슬라이스 1.2 + 1.3: 선택된 CSV 파일의 내용을 파싱하여 콘솔에 출력하고 테이블에 표시
+        슬라이스 1.2 + 1.3 + 1.4: 선택된 파일의 내용을 파싱하여 콘솔에 출력하고 테이블에 표시
         
         Args:
-            file_path: 파싱할 CSV 파일 경로
+            file_path: 파싱할 파일 경로 (CSV 또는 Excel)
         """
         print(f"\n🔍 파일 파싱 시작: {file_path}")
         
         try:
-            # CSV 파일 파싱 (첫 5행)
-            result = self.file_parser.parse_csv_preview(file_path, max_rows=5)
+            # 파일 확장자 확인
+            import os
+            file_ext = os.path.splitext(file_path)[1].lower()
+            
+            # 파일 확장자에 따라 적절한 파싱 함수 호출
+            if file_ext == '.csv':
+                print("📄 CSV 파일 파싱 중...")
+                result = self.file_parser.parse_csv_preview(file_path, max_rows=5)
+                file_type = "CSV"
+            elif file_ext in ['.xls', '.xlsx']:
+                print("📊 Excel 파일 파싱 중...")
+                result = self.file_parser.parse_excel_preview(file_path, max_rows=5)
+                file_type = "Excel"
+            else:
+                print(f"❌ 지원하지 않는 파일 형식: {file_ext}")
+                return
             
             if result['success']:
-                print("✅ CSV 파싱 성공!")
+                print(f"✅ {file_type} 파싱 성공!")
                 
                 # 슬라이스 1.2: 콘솔에 파싱 결과 출력
                 self.file_parser.print_csv_preview(result)
@@ -463,7 +477,7 @@ class MainWindow(QMainWindow):
                     self.show_transactions_screen()
                 
             else:
-                print(f"❌ CSV 파싱 실패: {result['error']}")
+                print(f"❌ {file_type} 파싱 실패: {result['error']}")
                 
         except Exception as e:
             print(f"❌ 파싱 중 예외 발생: {e}")
