@@ -7,10 +7,12 @@ Created: 2025-05-25
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QStackedWidget, 
-    QMenuBar, QMenu, QLabel
+    QMenuBar, QMenu, QLabel, QPushButton
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
+
+from ..core.file_handler import FileHandler
 
 
 class MainWindow(QMainWindow):
@@ -18,6 +20,10 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
+        
+        # 슬라이스 1.1: 파일 핸들러 초기화
+        self.file_handler = FileHandler()
+        
         self.init_ui()
         
     def init_ui(self):
@@ -123,6 +129,45 @@ class MainWindow(QMainWindow):
         """)
         layout.addWidget(info_label)
         
+        # 슬라이스 1.1: "거래내역 파일 불러오기" 버튼 추가
+        self.load_file_button = QPushButton("📁 거래내역 파일 불러오기")
+        self.load_file_button.setStyleSheet("""
+            QPushButton {
+                font-size: 16px;
+                font-weight: bold;
+                padding: 15px 30px;
+                background-color: #3498db;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                margin: 20px;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QPushButton:pressed {
+                background-color: #21618c;
+            }
+        """)
+        layout.addWidget(self.load_file_button)
+        
+        # 슬라이스 1.1: 버튼 클릭 이벤트 연결
+        self.load_file_button.clicked.connect(self.on_load_file_clicked)
+        
+        # 슬라이스 1.1: 선택된 파일 경로를 표시할 레이블 추가
+        self.file_path_label = QLabel("파일을 선택해주세요.")
+        self.file_path_label.setAlignment(Qt.AlignCenter)
+        self.file_path_label.setStyleSheet("""
+            font-size: 14px;
+            color: #7f8c8d;
+            padding: 10px;
+            margin: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        """)
+        layout.addWidget(self.file_path_label)
+        
         return welcome_widget
     
     def create_menu_bar(self):
@@ -210,4 +255,44 @@ class MainWindow(QMainWindow):
         
         help_about_action = QAction('AI 스마트 가계부 정보...', self)
         help_about_action.setStatusTip('프로그램 정보를 표시합니다')
-        help_menu.addAction(help_about_action) 
+        help_menu.addAction(help_about_action)
+    
+    def on_load_file_clicked(self):
+        """슬라이스 1.1: 거래내역 파일 불러오기 버튼 클릭 이벤트 처리"""
+        print("🔄 파일 선택 시작...")
+        
+        # 파일 선택 대화상자 열기
+        file_path = self.file_handler.select_file(self)
+        
+        if file_path:
+            # 파일 유효성 검증
+            is_valid, message = self.file_handler.validate_file(file_path, self)
+            
+            if is_valid:
+                # 파일 경로를 레이블에 표시
+                self.file_path_label.setText(f"📁 선택된 파일: {file_path}")
+                self.file_path_label.setStyleSheet("""
+                    font-size: 14px;
+                    color: #27ae60;
+                    padding: 10px;
+                    margin: 10px;
+                    background-color: #d5f4e6;
+                    border: 1px solid #27ae60;
+                    border-radius: 4px;
+                """)
+                print(f"✅ 파일 선택 완료: {file_path}")
+            else:
+                # 오류 시 기본 상태로 되돌리기
+                self.file_path_label.setText("파일을 선택해주세요.")
+                self.file_path_label.setStyleSheet("""
+                    font-size: 14px;
+                    color: #7f8c8d;
+                    padding: 10px;
+                    margin: 10px;
+                    background-color: #f8f9fa;
+                    border: 1px solid #dee2e6;
+                    border-radius: 4px;
+                """)
+                print(f"❌ 파일 검증 실패: {message}")
+        else:
+            print("📂 파일 선택 취소됨") 
