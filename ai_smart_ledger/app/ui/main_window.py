@@ -7,7 +7,8 @@ Created: 2025-05-25
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QStackedWidget, 
-    QMenuBar, QMenu, QLabel, QPushButton
+    QMenuBar, QMenu, QLabel, QPushButton, QTableWidget,
+    QTableWidgetItem, QHBoxLayout, QHeaderView
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
@@ -30,6 +31,9 @@ class MainWindow(QMainWindow):
         
         # 현재 선택된 파일 경로 저장
         self.selected_file_path = None
+        
+        # 슬라이스 1.3: 거래내역 테이블 위젯 초기화
+        self.transactions_table = None
         
         self.init_ui()
         
@@ -64,13 +68,13 @@ class MainWindow(QMainWindow):
         
         # 각 화면 위젯들을 미리 생성
         self.welcome_widget = self.create_welcome_screen()
-        # self.transactions_widget = self.create_transactions_screen()  # 나중에 구현
+        self.transactions_widget = self.create_transactions_screen()  # 슬라이스 1.3: 거래내역 화면 구현
         # self.dashboard_widget = self.create_dashboard_screen()        # 나중에 구현
         # self.settings_widget = self.create_settings_screen()          # 나중에 구현
         
         # 스택에 화면들 추가
         self.central_widget.addWidget(self.welcome_widget)  # 인덱스 0
-        # self.central_widget.addWidget(self.transactions_widget)  # 인덱스 1 (나중에)
+        self.central_widget.addWidget(self.transactions_widget)  # 인덱스 1: 슬라이스 1.3
         # self.central_widget.addWidget(self.dashboard_widget)     # 인덱스 2 (나중에)
         # self.central_widget.addWidget(self.settings_widget)      # 인덱스 3 (나중에)
         
@@ -82,9 +86,9 @@ class MainWindow(QMainWindow):
         print("🏠 환영 화면으로 전환")
     
     def show_transactions_screen(self):
-        """거래내역 화면으로 전환 (향후 구현)"""
-        # self.central_widget.setCurrentIndex(self.SCREEN_TRANSACTIONS)
-        print("📊 거래내역 화면 (아직 구현되지 않음)")
+        """거래내역 화면으로 전환"""
+        self.central_widget.setCurrentIndex(self.SCREEN_TRANSACTIONS)
+        print("📊 거래내역 화면으로 전환")
     
     def show_dashboard_screen(self):
         """대시보드 화면으로 전환 (향후 구현)"""
@@ -177,6 +181,169 @@ class MainWindow(QMainWindow):
         
         return welcome_widget
     
+    def create_transactions_screen(self):
+        """슬라이스 1.3: 거래내역 화면 위젯 생성 및 반환"""
+        transactions_widget = QWidget()
+        layout = QVBoxLayout()
+        transactions_widget.setLayout(layout)
+        
+        # 제목
+        title_label = QLabel("📊 거래내역 관리")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("""
+            font-size: 24px; 
+            font-weight: bold; 
+            margin: 20px;
+            color: #2c3e50;
+        """)
+        layout.addWidget(title_label)
+        
+        # 파일 정보 영역
+        file_info_layout = QHBoxLayout()
+        
+        # 파일 불러오기 버튼
+        self.transactions_load_button = QPushButton("📁 거래내역 파일 불러오기")
+        self.transactions_load_button.setStyleSheet("""
+            QPushButton {
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px 20px;
+                background-color: #3498db;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                margin: 10px;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QPushButton:pressed {
+                background-color: #21618c;
+            }
+        """)
+        self.transactions_load_button.clicked.connect(self.on_load_file_clicked)
+        file_info_layout.addWidget(self.transactions_load_button)
+        
+        # 파일 경로 레이블 (거래내역 화면용)
+        self.transactions_file_label = QLabel("파일을 선택해주세요.")
+        self.transactions_file_label.setStyleSheet("""
+            font-size: 12px;
+            color: #7f8c8d;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin: 10px;
+        """)
+        file_info_layout.addWidget(self.transactions_file_label)
+        
+        layout.addLayout(file_info_layout)
+        
+        # 거래내역 테이블 위젯 생성
+        self.transactions_table = QTableWidget()
+        self.setup_transactions_table()
+        
+        layout.addWidget(self.transactions_table)
+        
+        return transactions_widget
+    
+    def setup_transactions_table(self):
+        """거래내역 테이블 위젯 설정"""
+        # 기본 테이블 설정
+        self.transactions_table.setAlternatingRowColors(True)
+        self.transactions_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.transactions_table.setSortingEnabled(True)
+        
+        # 헤더 설정
+        self.transactions_table.horizontalHeader().setStretchLastSection(True)
+        self.transactions_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.transactions_table.verticalHeader().setVisible(False)
+        
+        # 스타일 설정
+        self.transactions_table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #e1e8ed;
+                background-color: white;
+                color: #2c3e50;
+                selection-background-color: #3498db;
+                font-size: 12px;
+            }
+            QTableWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #e1e8ed;
+                color: #2c3e50;
+                background-color: white;
+            }
+            QTableWidget::item:selected {
+                background-color: #3498db;
+                color: white;
+            }
+            QTableWidget::item:hover {
+                background-color: #ecf0f1;
+            }
+            QHeaderView::section {
+                background-color: #34495e;
+                color: white;
+                padding: 10px;
+                border: none;
+                font-weight: bold;
+            }
+        """)
+        
+        print("✅ 거래내역 테이블 위젯 설정 완료")
+    
+    def display_csv_data_in_table(self, csv_result: dict):
+        """
+        슬라이스 1.3: CSV 파싱 결과를 테이블에 표시
+        
+        Args:
+            csv_result: 파일 파서에서 반환된 CSV 파싱 결과
+        """
+        if not csv_result.get('success', False):
+            print(f"❌ CSV 데이터 표시 실패: {csv_result.get('error', '알 수 없는 오류')}")
+            return
+        
+        headers = csv_result.get('headers', [])
+        data = csv_result.get('data', [])
+        
+        print(f"🔄 테이블에 CSV 데이터 표시 중... (헤더: {len(headers)}개, 데이터: {len(data)}행)")
+        
+        try:
+            # 테이블 크기 설정
+            self.transactions_table.setColumnCount(len(headers))
+            self.transactions_table.setRowCount(len(data))
+            
+            # 헤더 설정
+            self.transactions_table.setHorizontalHeaderLabels(headers)
+            
+            # 데이터 입력
+            for row_idx, row_data in enumerate(data):
+                for col_idx, cell_data in enumerate(row_data):
+                    item = QTableWidgetItem(str(cell_data))
+                    self.transactions_table.setItem(row_idx, col_idx, item)
+            
+            # 컬럼 크기 자동 조정
+            self.transactions_table.resizeColumnsToContents()
+            
+            # 파일 경로 레이블 업데이트
+            if hasattr(self, 'transactions_file_label') and self.selected_file_path:
+                file_name = self.selected_file_path.split('/')[-1]
+                self.transactions_file_label.setText(f"📁 로드된 파일: {file_name} ({len(data)}행)")
+                self.transactions_file_label.setStyleSheet("""
+                    font-size: 12px;
+                    color: #27ae60;
+                    padding: 10px;
+                    background-color: #d5f4e6;
+                    border: 1px solid #27ae60;
+                    border-radius: 4px;
+                    margin: 10px;
+                """)
+            
+            print(f"✅ 테이블 데이터 표시 완료: {len(data)}행 x {len(headers)}열")
+            
+        except Exception as e:
+            print(f"❌ 테이블 데이터 표시 중 오류: {e}")
+    
     def create_menu_bar(self):
         """60번: 기본 메뉴 바 구조 생성"""
         # 메뉴 바 생성
@@ -266,7 +433,7 @@ class MainWindow(QMainWindow):
     
     def parse_and_display_preview(self, file_path: str) -> None:
         """
-        슬라이스 1.2: 선택된 CSV 파일의 내용을 파싱하여 콘솔에 출력
+        슬라이스 1.2 + 1.3: 선택된 CSV 파일의 내용을 파싱하여 콘솔에 출력하고 테이블에 표시
         
         Args:
             file_path: 파싱할 CSV 파일 경로
@@ -280,7 +447,7 @@ class MainWindow(QMainWindow):
             if result['success']:
                 print("✅ CSV 파싱 성공!")
                 
-                # 콘솔에 파싱 결과 출력
+                # 슬라이스 1.2: 콘솔에 파싱 결과 출력
                 self.file_parser.print_csv_preview(result)
                 
                 # 현재 선택된 파일 경로 저장
@@ -288,6 +455,12 @@ class MainWindow(QMainWindow):
                 
                 print(f"📝 총 {result['total_rows']}개의 데이터 행 발견")
                 print(f"📊 {len(result['headers'])}개의 컬럼 발견: {', '.join(result['headers'])}")
+                
+                # 슬라이스 1.3: 테이블에 데이터 표시
+                if self.transactions_table is not None:
+                    self.display_csv_data_in_table(result)
+                    print("🔄 거래내역 화면으로 자동 전환")
+                    self.show_transactions_screen()
                 
             else:
                 print(f"❌ CSV 파싱 실패: {result['error']}")
