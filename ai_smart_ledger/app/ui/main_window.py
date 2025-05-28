@@ -37,6 +37,9 @@ class MainWindow(QMainWindow):
         # 슬라이스 1.3: 거래내역 테이블 위젯 초기화
         self.transactions_table = None
         
+        # 슬라이스 2.2: 카테고리 선택 정보 저장용 딕셔너리 (행 번호 -> 카테고리명)
+        self.transaction_categories = {}
+        
         self.init_ui()
         
     def init_ui(self):
@@ -512,17 +515,27 @@ class MainWindow(QMainWindow):
     
     def on_category_selection_changed(self, row: int, selected_category: str):
         """
-        슬라이스 2.2에서 구현 예정: 카테고리 선택 변경 시 호출되는 메서드
+        슬라이스 2.2: 카테고리 선택 변경 시 호출되는 메서드
         
         Args:
             row (int): 변경된 행 번호
             selected_category (str): 선택된 카테고리명
         """
-        # 현재는 로깅만 수행 (슬라이스 2.2에서 실제 구현)
+        # 기본 선택 항목이 아닌 경우에만 내부 데이터에 저장
         if selected_category != "카테고리를 선택하세요":
+            # 선택된 카테고리를 내부 데이터 구조에 저장
+            self.transaction_categories[row] = selected_category
             print(f"📝 행 {row + 1}의 카테고리가 '{selected_category}'로 변경됨")
+            print(f"🔄 내부 데이터 업데이트: 행 {row} -> '{selected_category}'")
         else:
+            # 기본 선택 항목으로 되돌린 경우 내부 데이터에서 제거
+            if row in self.transaction_categories:
+                del self.transaction_categories[row]
             print(f"⚪ 행 {row + 1}의 카테고리 선택이 초기화됨")
+            print(f"🔄 내부 데이터에서 행 {row} 제거됨")
+        
+        # 현재 내부 데이터 상태 출력 (디버깅용)
+        print(f"📊 현재 저장된 카테고리: {self.transaction_categories}")
     
     def create_menu_bar(self):
         """60번: 기본 메뉴 바 구조 생성"""

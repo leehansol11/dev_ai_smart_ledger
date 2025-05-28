@@ -135,11 +135,11 @@ ai_smart_ledger/
 ### 슬라이스 2.2: 선택된 카테고리 정보 저장 (내부 데이터) 및 UI 반영
 
 - **🎯 목표:** 사용자가 드롭다운에서 카테고리를 선택하면, 그 선택이 내부적으로 (아직 DB 저장 전) 기록되고, UI에도 반영(선택된 값 표시)된다.
-- [ ] **로직:** `QComboBox`의 선택 변경 시그널(`currentIndexChanged` 또는 `currentTextChanged`)을 감지
-- [ ] **로직:** 선택된 카테고리명(또는 ID)을 해당 거래내역 객체(또는 내부 데이터 구조)에 임시 저장
-- [ ] **UI:** 선택된 카테고리가 드롭다운에 잘 표시되고, 필요시 해당 행의 다른 부분(예: 상태) 업데이트
-- [ ] **테스트:** 카테고리 변경 시 내부 데이터가 업데이트되는지 (디버깅/로깅으로) 확인
-- [ ] **커밋:** "Feat: Store selected category internally and reflect in UI (Slice 2.2)"
+- [x] **로직:** `QComboBox`의 선택 변경 시그널(`currentIndexChanged` 또는 `currentTextChanged`)을 감지
+- [x] **로직:** 선택된 카테고리명(또는 ID)을 해당 거래내역 객체(또는 내부 데이터 구조)에 임시 저장
+- [x] **UI:** 선택된 카테고리가 드롭다운에 잘 표시되고, 필요시 해당 행의 다른 부분(예: 상태) 업데이트
+- [x] **테스트:** 카테고리 변경 시 내부 데이터가 업데이트되는지 (디버깅/로깅으로) 확인
+- [x] **커밋:** "Feat: Store selected category internally and reflect in UI (Slice 2.2)"
 
 ### 슬라이스 2.3: 분류된 카테고리 `transactions` DB에 저장
 
