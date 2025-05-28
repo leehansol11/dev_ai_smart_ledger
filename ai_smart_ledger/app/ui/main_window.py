@@ -9,13 +9,14 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QStackedWidget, 
     QMenuBar, QMenu, QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QHBoxLayout, QHeaderView, QDialog,
-    QTextEdit, QDialogButtonBox, QScrollArea
+    QTextEdit, QDialogButtonBox, QScrollArea, QComboBox
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QFont, QPixmap
 
 from ..core.file_handler import FileHandler
 from ..core.file_parser import FileParser
+from ..db.crud import get_categories_for_dropdown
 
 
 class MainWindow(QMainWindow):
@@ -343,8 +344,159 @@ class MainWindow(QMainWindow):
             
             print(f"✅ 테이블 데이터 표시 완료: {len(data)}행 x {len(headers)}열")
             
+            self.add_category_comboboxes_to_table()
+            
         except Exception as e:
             print(f"❌ 테이블 데이터 표시 중 오류: {e}")
+    
+    def add_category_comboboxes_to_table(self):
+        """
+        슬라이스 2.1: QTableWidget의 "사용자 확정 카테고리" 열에 각 행마다 QComboBox 추가
+        
+        데이터베이스에서 카테고리 목록을 가져와서 각 거래 행에 드롭다운 메뉴를 생성합니다.
+        "사용자 확정 카테고리" 열이 없으면 자동으로 추가합니다.
+        """
+        try:
+            table = self.transactions_table
+            
+            # 테이블에 데이터가 없으면 종료
+            if table.rowCount() == 0:
+                print("⚠️ 테이블에 데이터가 없어서 ComboBox를 추가할 수 없습니다")
+                return
+            
+            # "사용자 확정 카테고리" 열 인덱스 찾기
+            category_column_index = -1
+            for col in range(table.columnCount()):
+                header_item = table.horizontalHeaderItem(col)
+                if header_item and header_item.text() == "사용자 확정 카테고리":
+                    category_column_index = col
+                    break
+            
+            # "사용자 확정 카테고리" 열이 없으면 추가
+            if category_column_index == -1:
+                print("📝 '사용자 확정 카테고리' 열이 없어서 새로 추가합니다")
+                
+                # 새 열 추가
+                category_column_index = table.columnCount()
+                table.setColumnCount(category_column_index + 1)
+                
+                # 헤더 설정
+                header_item = QTableWidgetItem("사용자 확정 카테고리")
+                table.setHorizontalHeaderItem(category_column_index, header_item)
+                
+                # 기존 행들에 빈 셀 추가
+                for row in range(table.rowCount()):
+                    item = QTableWidgetItem("")
+                    table.setItem(row, category_column_index, item)
+                
+                print(f"✅ '사용자 확정 카테고리' 열을 {category_column_index}번 위치에 추가했습니다")
+            
+            # 데이터베이스에서 카테고리 목록 가져오기
+            print("🔄 데이터베이스에서 카테고리 목록을 가져오는 중...")
+            categories = get_categories_for_dropdown()
+            
+            if not categories:
+                print("⚠️ 데이터베이스에서 카테고리를 가져올 수 없습니다")
+                return
+            
+            print(f"✅ {len(categories)}개의 카테고리를 가져왔습니다")
+            
+            # 각 행에 ComboBox 추가
+            for row in range(table.rowCount()):
+                # ComboBox 생성
+                combobox = QComboBox()
+                
+                # 기본 선택 항목 추가
+                combobox.addItem("카테고리를 선택하세요")
+                
+                # 카테고리 목록 추가
+                for category in categories:
+                    combobox.addItem(category)
+                
+                # 가장 긴 카테고리 문자열에 맞춰 최적 너비 계산 (대략 글자당 8px + 여백)
+                max_category_length = max(len(cat) for cat in categories + ["카테고리를 선택하세요"])
+                optimal_width = max_category_length * 8 + 30  # 글자당 8px + 드롭다운 버튼 여백
+                combobox.setFixedWidth(optimal_width)
+                combobox.setFixedHeight(20)  # 높이를 20px로 고정 (10px < 20px < 28px)
+                
+                # ComboBox 스타일링 (크기 최적화)
+                combobox.setStyleSheet(f"""
+                    QComboBox {{
+                        font-size: 10px;
+                        padding: 1px 4px;
+                        border: 1px solid #bdc3c7;
+                        border-radius: 3px;
+                        background-color: white;
+                        color: #2c3e50;
+                        min-width: {optimal_width}px;
+                        max-width: {optimal_width}px;
+                        height: 20px;
+                        max-height: 20px;
+                    }}
+                    QComboBox:hover {{
+                        border-color: #3498db;
+                        background-color: #f8f9fa;
+                    }}
+                    QComboBox:focus {{
+                        border-color: #3498db;
+                        outline: none;
+                    }}
+                    QComboBox::drop-down {{
+                        subcontrol-origin: padding;
+                        subcontrol-position: top right;
+                        width: 16px;
+                        border-left-width: 1px;
+                        border-left-color: #bdc3c7;
+                        border-left-style: solid;
+                        border-top-right-radius: 3px;
+                        border-bottom-right-radius: 3px;
+                        background-color: #ecf0f1;
+                    }}
+                    QComboBox::down-arrow {{
+                        width: 6px;
+                        height: 6px;
+                    }}
+                    QComboBox QAbstractItemView {{
+                        border: 1px solid #bdc3c7;
+                        selection-background-color: #3498db;
+                        background-color: white;
+                        color: #2c3e50;
+                        font-size: 10px;
+                    }}
+                """)
+                
+                # 선택 변경 시그널 연결 (슬라이스 2.2에서 사용)
+                combobox.currentTextChanged.connect(
+                    lambda text, r=row: self.on_category_selection_changed(r, text)
+                )
+                
+                # 테이블 셀에 ComboBox 설정
+                table.setCellWidget(row, category_column_index, combobox)
+                
+                print(f"✅ 행 {row + 1}에 카테고리 ComboBox 추가 완료 (너비: {optimal_width}px)")
+            
+            # 카테고리 열 너비 최적화
+            table.setColumnWidth(category_column_index, optimal_width + 10)
+            
+            print(f"🎉 모든 {table.rowCount()}개 행에 카테고리 ComboBox 추가 완료! (최적 너비: {optimal_width}px)")
+            
+        except Exception as e:
+            print(f"❌ 카테고리 ComboBox 추가 중 오류 발생: {e}")
+            raise
+    
+    def on_category_selection_changed(self, row: int, selected_category: str):
+        """
+        슬라이스 2.2에서 구현 예정: 카테고리 선택 변경 시 호출되는 메서드
+        
+        Args:
+            row (int): 변경된 행 번호
+            selected_category (str): 선택된 카테고리명
+        """
+        # 현재는 로깅만 수행 (슬라이스 2.2에서 실제 구현)
+        if selected_category != "카테고리를 선택하세요":
+            print(f"📝 행 {row + 1}의 카테고리가 '{selected_category}'로 변경됨")
+        else:
+            print(f"⚪ 행 {row + 1}의 카테고리 선택이 초기화됨")
     
     def create_menu_bar(self):
         """60번: 기본 메뉴 바 구조 생성"""
