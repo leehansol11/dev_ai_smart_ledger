@@ -40,6 +40,13 @@ class MainWindow(QMainWindow):
         # 슬라이스 2.2: 카테고리 선택 정보 저장용 딕셔너리 (행 번호 -> 카테고리명)
         self.transaction_categories = {}
         
+        # 슬라이스 2.4: 실행 취소 기능을 위한 카테고리 변경 히스토리 스택
+        self.category_change_history = []
+        self.max_history_size = 10  # 메모리 관리를 위한 히스토리 크기 제한
+        
+        # 슬라이스 2.4: 실행 취소 버튼 (나중에 초기화됨)
+        self.undo_button = None
+        
         self.init_ui()
         
     def init_ui(self):
@@ -228,6 +235,34 @@ class MainWindow(QMainWindow):
         """)
         self.transactions_load_button.clicked.connect(self.on_load_file_clicked)
         file_info_layout.addWidget(self.transactions_load_button)
+        
+        # 슬라이스 2.4: 실행 취소 버튼 추가
+        self.undo_button = QPushButton("⏪ 실행 취소")
+        self.undo_button.setStyleSheet("""
+            QPushButton {
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px 20px;
+                background-color: #e74c3c;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                margin: 10px;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+            }
+            QPushButton:pressed {
+                background-color: #a93226;
+            }
+            QPushButton:disabled {
+                background-color: #bdc3c7;
+                color: #7f8c8d;
+            }
+        """)
+        self.undo_button.clicked.connect(self.on_undo_button_clicked)
+        self.undo_button.setEnabled(False)  # 초기에는 비활성화
+        file_info_layout.addWidget(self.undo_button)
         
         # 파일 경로 레이블 (거래내역 화면용)
         self.transactions_file_label = QLabel("파일을 선택해주세요.")
@@ -516,13 +551,21 @@ class MainWindow(QMainWindow):
     def on_category_selection_changed(self, row: int, selected_category: str):
         """
         슬라이스 2.2: 카테고리 선택 변경 시 호출되는 메서드
+        슬라이스 2.4: 실행 취소를 위한 히스토리 저장 기능 추가
         
         Args:
             row (int): 변경된 행 번호
             selected_category (str): 선택된 카테고리명
         """
+        # 슬라이스 2.4: 이전 카테고리 값 저장 (실행 취소용)
+        previous_category = self.transaction_categories.get(row, "카테고리를 선택하세요")
+        
         # 기본 선택 항목이 아닌 경우에만 내부 데이터에 저장
         if selected_category != "카테고리를 선택하세요":
+            # 슬라이스 2.4: 히스토리에 변경 사항 저장 (변경이 있는 경우에만)
+            if previous_category != selected_category:
+                self.save_category_change_to_history(row, previous_category, selected_category)
+            
             # 선택된 카테고리를 내부 데이터 구조에 저장
             self.transaction_categories[row] = selected_category
             print(f"📝 행 {row + 1}의 카테고리가 '{selected_category}'로 변경됨")
@@ -530,12 +573,124 @@ class MainWindow(QMainWindow):
         else:
             # 기본 선택 항목으로 되돌린 경우 내부 데이터에서 제거
             if row in self.transaction_categories:
+                # 슬라이스 2.4: 히스토리에 변경 사항 저장 (삭제도 변경으로 취급)
+                self.save_category_change_to_history(row, previous_category, selected_category)
+                
                 del self.transaction_categories[row]
             print(f"⚪ 행 {row + 1}의 카테고리 선택이 초기화됨")
             print(f"🔄 내부 데이터에서 행 {row} 제거됨")
         
+        # 슬라이스 2.4: 실행 취소 버튼 상태 업데이트
+        self.update_undo_button_state()
+        
         # 현재 내부 데이터 상태 출력 (디버깅용)
         print(f"📊 현재 저장된 카테고리: {self.transaction_categories}")
+    
+    def save_category_change_to_history(self, row: int, previous_category: str, current_category: str):
+        """
+        슬라이스 2.4: 카테고리 변경 사항을 히스토리 스택에 저장
+        
+        Args:
+            row (int): 변경된 행 번호
+            previous_category (str): 이전 카테고리명
+            current_category (str): 현재 카테고리명
+        """
+        history_entry = {
+            'row': row,
+            'previous_category': previous_category,
+            'current_category': current_category
+        }
+        
+        # 히스토리에 추가
+        self.category_change_history.append(history_entry)
+        
+        # 히스토리 크기 제한 (메모리 관리)
+        if len(self.category_change_history) > self.max_history_size:
+            self.category_change_history.pop(0)  # 가장 오래된 항목 제거
+        
+        print(f"💾 히스토리 저장: 행 {row + 1}, '{previous_category}' → '{current_category}'")
+        print(f"📝 현재 히스토리 크기: {len(self.category_change_history)}")
+    
+    def on_undo_button_clicked(self):
+        """
+        슬라이스 2.4: 실행 취소 버튼 클릭 이벤트 처리
+        """
+        if not self.category_change_history:
+            print("⚠️ 실행 취소할 변경 사항이 없습니다")
+            return
+        
+        # 가장 최근 변경 사항 가져오기
+        last_change = self.category_change_history.pop()
+        row = last_change['row']
+        previous_category = last_change['previous_category']
+        current_category = last_change['current_category']
+        
+        print(f"⏪ 실행 취소: 행 {row + 1}, '{current_category}' → '{previous_category}'")
+        
+        # UI에서 ComboBox 찾기
+        table = self.transactions_table
+        category_column_index = -1
+        for col in range(table.columnCount()):
+            header_item = table.horizontalHeaderItem(col)
+            if header_item and header_item.text() == "사용자 확정 카테고리":
+                category_column_index = col
+                break
+        
+        if category_column_index != -1 and row < table.rowCount():
+            combobox = table.cellWidget(row, category_column_index)
+            if isinstance(combobox, QComboBox):
+                # 시그널 연결을 일시적으로 해제하여 무한 루프 방지
+                combobox.currentTextChanged.disconnect()
+                
+                # ComboBox를 이전 카테고리로 변경
+                for i in range(combobox.count()):
+                    if combobox.itemText(i) == previous_category:
+                        combobox.setCurrentIndex(i)
+                        break
+                
+                # 내부 데이터 업데이트
+                if previous_category != "카테고리를 선택하세요":
+                    self.transaction_categories[row] = previous_category
+                else:
+                    if row in self.transaction_categories:
+                        del self.transaction_categories[row]
+                
+                # 시그널 다시 연결
+                combobox.currentTextChanged.connect(
+                    lambda text, r=row: self.on_category_selection_changed(r, text)
+                )
+                
+                print(f"✅ 실행 취소 완료: 행 {row + 1}이 '{previous_category}'로 복원됨")
+        
+        # 실행 취소 버튼 상태 업데이트
+        self.update_undo_button_state()
+        
+        # 현재 내부 데이터 상태 출력
+        print(f"📊 실행 취소 후 저장된 카테고리: {self.transaction_categories}")
+    
+    def update_undo_button_state(self):
+        """
+        슬라이스 2.4: 실행 취소 버튼의 활성화/비활성화 상태 업데이트
+        """
+        if self.undo_button:
+            has_history = len(self.category_change_history) > 0
+            self.undo_button.setEnabled(has_history)
+            
+            if has_history:
+                # 가장 최근 변경 사항 정보를 툴팁으로 표시
+                last_change = self.category_change_history[-1]
+                tooltip = f"실행 취소: 행 {last_change['row'] + 1} '{last_change['current_category']}' → '{last_change['previous_category']}'"
+                self.undo_button.setToolTip(tooltip)
+            else:
+                self.undo_button.setToolTip("실행 취소할 변경 사항이 없습니다")
+    
+    def clear_category_change_history(self):
+        """
+        슬라이스 2.4: 카테고리 변경 히스토리 초기화 (새 파일 로딩 시 사용)
+        """
+        self.category_change_history.clear()
+        self.update_undo_button_state()
+        print("🧹 카테고리 변경 히스토리가 초기화되었습니다")
     
     def create_menu_bar(self):
         """60번: 기본 메뉴 바 구조 생성"""
@@ -633,6 +788,9 @@ class MainWindow(QMainWindow):
             file_path: 파싱할 파일 경로 (CSV 또는 Excel)
         """
         print(f"\n🔍 파일 파싱 시작: {file_path}")
+        
+        # 슬라이스 2.4: 새 파일 로딩 시 카테고리 변경 히스토리 초기화
+        self.clear_category_change_history()
         
         try:
             # 파일 확장자 확인

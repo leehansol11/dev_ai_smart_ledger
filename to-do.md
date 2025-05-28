@@ -144,20 +144,20 @@ ai_smart_ledger/
 ### 슬라이스 2.3: 분류된 카테고리 `transactions` DB에 저장
 
 - **🎯 목표:** 사용자가 선택한 카테고리 정보를 실제 `transactions` 테이블의 해당 거래 내역에 업데이트한다. (예: "분류 완료" 버튼 클릭 또는 자동 저장)
-- [ ] **UI:** (선택적) "분류 완료/저장" 버튼 추가 또는 자동 저장 방식 결정
-- [ ] **DB:** 특정 거래 ID에 대해 확정된 카테고리 ID를 `transactions` 테이블에 업데이트하는 함수 구현 (`app/db/crud.py`) [PRD 3.2.1]
-- [ ] **로직:** 버튼 클릭 또는 특정 조건 만족 시, 내부적으로 임시 저장된 사용자 확정 카테고리 정보를 DB에 일괄 또는 개별 저장
-- [ ] **테스트:** DB Browser 등으로 실제 `transactions` 테이블의 `category_id`가 업데이트되었는지 확인
-- [ ] **커밋:** "Feat: Save user-confirmed categories to transactions database (Slice 2.3)"
+- [x] **UI:** (선택적) "분류 완료/저장" 버튼 추가 또는 자동 저장 방식 결정
+- [x] **DB:** 특정 거래 ID에 대해 확정된 카테고리 ID를 `transactions` 테이블에 업데이트하는 함수 구현 (`app/db/crud.py`) [PRD 3.2.1]
+- [x] **로직:** 버튼 클릭 또는 특정 조건 만족 시, 내부적으로 임시 저장된 사용자 확정 카테고리 정보를 DB에 일괄 또는 개별 저장
+- [x] **테스트:** DB Browser 등으로 실제 `transactions` 테이블의 `category_id`가 업데이트되었는지 확인
+- [x] **커밋:** "Feat: Save user-confirmed categories to transactions database (Slice 2.3)"
 
 ### 슬라이스 2.4: "실행 취소(Undo)" 기능 (최근 1개 카테고리 변경)
 
 - **🎯 목표:** 사용자가 가장 최근에 변경한 카테고리 선택을 이전 상태로 되돌릴 수 있다.
-- [ ] **로직:** 카테고리 변경 시, 이전 선택값과 현재 선택값을 스택(stack) 등에 저장하는 로직 추가
-- [ ] **UI:** "실행 취소" 버튼 추가 및 클릭 시그널 연결
-- [ ] **로직:** "실행 취소" 시, 스택에서 이전 상태를 가져와 현재 카테고리 선택 복원 (UI 및 내부 데이터, 필요시 DB도 업데이트)
-- [ ] **테스트:** 카테고리 변경 후 실행 취소 시 이전 선택으로 돌아가는지 확인
-- [ ] **커밋:** "Feat: Implement single-step undo for category selection (Slice 2.4)"
+- [x] **로직:** 카테고리 변경 시, 이전 선택값과 현재 선택값을 스택(stack) 등에 저장하는 로직 추가
+- [x] **UI:** "실행 취소" 버튼 추가 및 클릭 시그널 연결
+- [x] **로직:** "실행 취소" 시, 스택에서 이전 상태를 가져와 현재 카테고리 선택 복원 (UI 및 내부 데이터, 필요시 DB도 업데이트)
+- [x] **테스트:** 카테고리 변경 후 실행 취소 시 이전 선택으로 돌아가는지 확인
+- [x] **커밋:** "Feat: Implement single-step undo for category selection (Slice 2.4)"
 
 ### 슬라이스 2.5: "중간 저장" 기능 (분류 진행 상태)
 
