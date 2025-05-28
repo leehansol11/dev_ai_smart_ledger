@@ -6,7 +6,7 @@ Created: 2025-05-25
 슬라이스 2.1에서 필요한 categories 테이블 관련 함수들을 구현합니다.
 """
 
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Any
 from .database import get_db_connection
 
 
@@ -248,4 +248,297 @@ if __name__ == "__main__":
     
     finally:
         from .database import close_db_connection
-        close_db_connection() 
+        close_db_connection()
+
+
+# =============================================================================
+# 슬라이스 2.3: Transactions 테이블 관련 CRUD 함수들
+# =============================================================================
+
+def update_transaction_category(transaction_id: int, category_id: int) -> bool:
+    """
+    특정 거래내역의 카테고리를 업데이트합니다.
+    
+    Args:
+        transaction_id (int): 업데이트할 거래내역 ID
+        category_id (int): 새로 할당할 카테고리 ID
+    
+    Returns:
+        bool: 업데이트 성공 여부
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 거래내역 존재 여부 확인
+        check_query = "SELECT transaction_id FROM transactions WHERE transaction_id = ?"
+        cursor.execute(check_query, (transaction_id,))
+        transaction = cursor.fetchone()
+        
+        if not transaction:
+            print(f"⚠️ 거래내역 ID {transaction_id}를 찾을 수 없습니다")
+            return False
+        
+        # 카테고리 존재 여부 확인
+        check_category_query = "SELECT category_id FROM categories WHERE category_id = ?"
+        cursor.execute(check_category_query, (category_id,))
+        category = cursor.fetchone()
+        
+        if not category:
+            print(f"⚠️ 카테고리 ID {category_id}를 찾을 수 없습니다")
+            return False
+        
+        # 카테고리 업데이트
+        update_query = """
+        UPDATE transactions 
+        SET category_id = ?, updated_at = CURRENT_TIMESTAMP 
+        WHERE transaction_id = ?
+        """
+        
+        cursor.execute(update_query, (category_id, transaction_id))
+        conn.commit()
+        
+        if cursor.rowcount > 0:
+            print(f"✅ 거래내역 ID {transaction_id}의 카테고리가 ID {category_id}로 업데이트되었습니다")
+            return True
+        else:
+            print(f"⚠️ 거래내역 ID {transaction_id} 업데이트에 실패했습니다")
+            return False
+        
+    except Exception as e:
+        print(f"❌ 거래내역 카테고리 업데이트 중 오류 발생: {e}")
+        return False
+
+
+def update_multiple_transactions_categories(updates: List[Dict[str, int]]) -> bool:
+    """
+    여러 거래내역의 카테고리를 일괄 업데이트합니다.
+    트랜잭션을 사용하여 전체 성공 또는 전체 실패를 보장합니다.
+    
+    Args:
+        updates (List[Dict[str, int]]): 업데이트할 거래내역 목록
+            각 딕셔너리는 {'transaction_id': int, 'category_id': int} 형태
+    
+    Returns:
+        bool: 일괄 업데이트 성공 여부
+    """
+    if not updates:
+        print("⚠️ 업데이트할 거래내역이 없습니다")
+        return False
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 트랜잭션 시작
+        cursor.execute("BEGIN TRANSACTION")
+        
+        update_query = """
+        UPDATE transactions 
+        SET category_id = ?, updated_at = CURRENT_TIMESTAMP 
+        WHERE transaction_id = ?
+        """
+        
+        for update in updates:
+            transaction_id = update.get('transaction_id')
+            category_id = update.get('category_id')
+            
+            if transaction_id is None or category_id is None:
+                print(f"⚠️ 잘못된 업데이트 데이터: {update}")
+                cursor.execute("ROLLBACK")
+                return False
+            
+            # 개별 업데이트 실행
+            cursor.execute(update_query, (category_id, transaction_id))
+            
+            if cursor.rowcount == 0:
+                print(f"⚠️ 거래내역 ID {transaction_id} 업데이트 실패")
+                cursor.execute("ROLLBACK")
+                return False
+        
+        # 트랜잭션 커밋
+        cursor.execute("COMMIT")
+        print(f"✅ {len(updates)}개 거래내역의 카테고리가 일괄 업데이트되었습니다")
+        return True
+        
+    except Exception as e:
+        print(f"❌ 일괄 카테고리 업데이트 중 오류 발생: {e}")
+        try:
+            cursor.execute("ROLLBACK")
+        except:
+            pass
+        return False
+
+
+def get_uncategorized_transactions() -> List[Dict[str, Any]]:
+    """
+    미분류 거래내역(category_id가 NULL인 거래)을 조회합니다.
+    
+    Returns:
+        List[Dict[str, Any]]: 미분류 거래내역 목록
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+        SELECT transaction_id, account_id, timestamp, description, 
+               amount_in, amount_out, category_id, is_transfer,
+               source_file, source_row_id, created_at, updated_at
+        FROM transactions 
+        WHERE category_id IS NULL
+        ORDER BY timestamp DESC
+        """
+        
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        
+        # 딕셔너리 형태로 변환
+        transactions = []
+        columns = ['transaction_id', 'account_id', 'timestamp', 'description',
+                  'amount_in', 'amount_out', 'category_id', 'is_transfer',
+                  'source_file', 'source_row_id', 'created_at', 'updated_at']
+        
+        for row in rows:
+            transaction = dict(zip(columns, row))
+            transactions.append(transaction)
+        
+        print(f"✅ 미분류 거래내역 {len(transactions)}개 조회 완료")
+        return transactions
+        
+    except Exception as e:
+        print(f"❌ 미분류 거래내역 조회 중 오류 발생: {e}")
+        return []
+
+
+def get_categorized_transactions() -> List[Dict[str, Any]]:
+    """
+    분류 완료된 거래내역(category_id가 NULL이 아닌 거래)을 조회합니다.
+    
+    Returns:
+        List[Dict[str, Any]]: 분류 완료 거래내역 목록
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+        SELECT t.transaction_id, t.account_id, t.timestamp, t.description, 
+               t.amount_in, t.amount_out, t.category_id, t.is_transfer,
+               t.source_file, t.source_row_id, t.created_at, t.updated_at,
+               c.category_name
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.category_id
+        WHERE t.category_id IS NOT NULL
+        ORDER BY t.timestamp DESC
+        """
+        
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        
+        # 딕셔너리 형태로 변환
+        transactions = []
+        columns = ['transaction_id', 'account_id', 'timestamp', 'description',
+                  'amount_in', 'amount_out', 'category_id', 'is_transfer',
+                  'source_file', 'source_row_id', 'created_at', 'updated_at',
+                  'category_name']
+        
+        for row in rows:
+            transaction = dict(zip(columns, row))
+            transactions.append(transaction)
+        
+        print(f"✅ 분류 완료 거래내역 {len(transactions)}개 조회 완료")
+        return transactions
+        
+    except Exception as e:
+        print(f"❌ 분류 완료 거래내역 조회 중 오류 발생: {e}")
+        return []
+
+
+def get_transaction_by_id(transaction_id: int) -> Optional[Dict[str, Any]]:
+    """
+    특정 ID의 거래내역을 조회합니다.
+    
+    Args:
+        transaction_id (int): 조회할 거래내역 ID
+    
+    Returns:
+        Optional[Dict[str, Any]]: 거래내역 정보 또는 None
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+        SELECT t.transaction_id, t.account_id, t.timestamp, t.description, 
+               t.amount_in, t.amount_out, t.category_id, t.is_transfer,
+               t.source_file, t.source_row_id, t.created_at, t.updated_at,
+               c.category_name
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.category_id
+        WHERE t.transaction_id = ?
+        """
+        
+        cursor.execute(query, (transaction_id,))
+        row = cursor.fetchone()
+        
+        if row:
+            columns = ['transaction_id', 'account_id', 'timestamp', 'description',
+                      'amount_in', 'amount_out', 'category_id', 'is_transfer',
+                      'source_file', 'source_row_id', 'created_at', 'updated_at',
+                      'category_name']
+            
+            transaction = dict(zip(columns, row))
+            print(f"✅ 거래내역 ID {transaction_id} 조회 성공")
+            return transaction
+        else:
+            print(f"⚠️ 거래내역 ID {transaction_id}를 찾을 수 없습니다")
+            return None
+        
+    except Exception as e:
+        print(f"❌ 거래내역 ID {transaction_id} 조회 중 오류 발생: {e}")
+        return None
+
+
+def insert_transaction(transaction_data: Dict[str, Any]) -> Optional[int]:
+    """
+    새로운 거래내역을 삽입합니다.
+    
+    Args:
+        transaction_data (Dict[str, Any]): 거래내역 데이터
+    
+    Returns:
+        Optional[int]: 삽입된 거래내역의 ID 또는 None
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        insert_query = """
+        INSERT INTO transactions (
+            account_id, timestamp, description, amount_in, amount_out,
+            category_id, is_transfer, source_file, source_row_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        cursor.execute(insert_query, (
+            transaction_data.get('account_id'),
+            transaction_data.get('timestamp'),
+            transaction_data.get('description'),
+            transaction_data.get('amount_in'),
+            transaction_data.get('amount_out'),
+            transaction_data.get('category_id'),
+            transaction_data.get('is_transfer', False),
+            transaction_data.get('source_file'),
+            transaction_data.get('source_row_id')
+        ))
+        
+        conn.commit()
+        transaction_id = cursor.lastrowid
+        
+        print(f"✅ 새로운 거래내역이 삽입되었습니다 (ID: {transaction_id})")
+        return transaction_id
+        
+    except Exception as e:
+        print(f"❌ 거래내역 삽입 중 오류 발생: {e}")
+        return None 
