@@ -130,7 +130,7 @@ ai_smart_ledger/
 - [x] **UI:** `QTableWidget`의 특정 열(예: "사용자 확정 카테고리")에 `QComboBox`를 각 행마다 추가
 - [x] **로직:** DB에서 가져온 카테고리 목록을 각 `QComboBox`에 채워 넣기
 - [x] **테스트:** 모든 행에 드롭다운이 잘 생성되고 카테고리 목록이 올바르게 표시되는지 확인
-- [ ] **커밋:** "Feat: Add category selection dropdown to each transaction row (Slice 2.1)"
+- [x] **커밋:** "Feat: Add category selection dropdown to each transaction row (Slice 2.1)"
 
 ### 슬라이스 2.2: 선택된 카테고리 정보 저장 (내부 데이터) 및 UI 반영
 

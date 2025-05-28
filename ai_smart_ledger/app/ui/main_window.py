@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QStackedWidget, 
     QMenuBar, QMenu, QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QHBoxLayout, QHeaderView, QDialog,
-    QTextEdit, QDialogButtonBox, QScrollArea, QComboBox
+    QTextEdit, QDialogButtonBox, QScrollArea, QComboBox, QListView
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QFont, QPixmap
@@ -406,6 +406,11 @@ class MainWindow(QMainWindow):
                 # ComboBox 생성
                 combobox = QComboBox()
                 
+                # 드롭다운에 사용할 QListView를 따로 만들어 설정 (마우스 오버 효과용)
+                view = QListView()
+                view.setMouseTracking(True)  # 마우스 오버 감지 활성화
+                combobox.setView(view)
+                
                 # 기본 선택 항목 추가
                 combobox.addItem("카테고리를 선택하세요")
                 
@@ -419,7 +424,7 @@ class MainWindow(QMainWindow):
                 combobox.setFixedWidth(optimal_width)
                 combobox.setFixedHeight(20)  # 높이를 20px로 고정 (10px < 20px < 28px)
                 
-                # ComboBox 스타일링 (크기 최적화)
+                # ComboBox 스타일링 (크기 최적화 + 마우스 오버 효과)
                 combobox.setStyleSheet(f"""
                     QComboBox {{
                         font-size: 10px;
@@ -456,12 +461,33 @@ class MainWindow(QMainWindow):
                         width: 6px;
                         height: 6px;
                     }}
+                    /* 드롭다운 리스트 전체 */
                     QComboBox QAbstractItemView {{
                         border: 1px solid #bdc3c7;
-                        selection-background-color: #3498db;
+                        selection-background-color: #2980b9;
+                        selection-color: white;
                         background-color: white;
                         color: #2c3e50;
                         font-size: 10px;
+                        outline: 0;
+                    }}
+                    /* 각 항목 공통 패딩 */
+                    QComboBox QAbstractItemView::item {{
+                        padding: 4px 6px;
+                        color: #2c3e50;
+                        background-color: white;
+                    }}
+                    /* 마우스 오버(hover) 상태용 배경 - 대비 개선 */
+                    QComboBox QAbstractItemView::item:hover {{
+                        background-color: #e8f4fd;
+                        color: #1a365d;
+                        border: none;
+                    }}
+                    /* 선택된 항목 스타일 - 대비 개선 */
+                    QComboBox QAbstractItemView::item:selected {{
+                        background-color: #2980b9;
+                        color: white;
+                        border: none;
                     }}
                 """)
                 
