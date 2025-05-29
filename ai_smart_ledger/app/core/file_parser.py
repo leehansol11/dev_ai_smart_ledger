@@ -364,6 +364,114 @@ class FileParser:
                 'success': False,
                 'error': str(e)
             }
+    
+    @staticmethod
+    def parse_csv_all(file_path: str) -> Dict:
+        """
+        CSV 파일 전체를 파싱하여 모든 데이터 행을 반환
+        (신한은행 등 실제 은행 양식 헤더 자동 매핑 지원)
+        """
+        result = {
+            'success': False,
+            'headers': [],
+            'data': [],
+            'total_rows': 0,
+            'error': None
+        }
+        HEADER_MAP = {
+            "거래일자": "날짜",
+            "거래시간": "시간",
+            "적요": "적요",
+            "출금(원)": "출금",
+            "입금(원)": "입금",
+            "잔액(원)": "잔액",
+            "거래점": "거래처",
+            "날짜": "날짜",
+            "시간": "시간",
+            "출금": "출금",
+            "입금": "입금",
+            "잔액": "잔액",
+            "거래처": "거래처",
+        }
+        try:
+            if not os.path.exists(file_path):
+                result['error'] = f"파일이 존재하지 않습니다: {file_path}"
+                return result
+            if os.path.getsize(file_path) == 0:
+                result['error'] = "파일이 비어있습니다"
+                return result
+            encoding = 'utf-8'
+            try:
+                with open(file_path, 'rb') as f:
+                    raw_data = f.read(1024)
+                    if raw_data:
+                        detected = chardet.detect(raw_data)
+                        if detected['encoding'] and detected['confidence'] > 0.7:
+                            encoding = detected['encoding']
+            except:
+                pass
+            try:
+                with open(file_path, 'r', encoding=encoding, newline='') as csvfile:
+                    try:
+                        sample = csvfile.read(1024)
+                        csvfile.seek(0)
+                        sniffer = csv.Sniffer()
+                        dialect = sniffer.sniff(sample)
+                    except:
+                        dialect = csv.excel
+                    reader = csv.reader(csvfile, dialect)
+                    try:
+                        headers = next(reader)
+                        mapped_headers = [HEADER_MAP.get(h.strip(), h.strip()) for h in headers]
+                        result['headers'] = mapped_headers
+                        print(f"📋 헤더 발견: {headers} → {mapped_headers}")
+                    except StopIteration:
+                        result['error'] = "파일이 비어있습니다"
+                        return result
+                    data_rows = []
+                    total_count = 0
+                    malformed_rows = 0
+                    for row_num, row in enumerate(reader, start=2):
+                        total_count += 1
+                        if len(row) != len(headers):
+                            malformed_rows += 1
+                            if malformed_rows <= 3:
+                                print(f"⚠️ {row_num}행: 컬럼 수 불일치 (헤더: {len(headers)}, 데이터: {len(row)})")
+                        mapped_row = []
+                        for idx, cell in enumerate(row):
+                            h = headers[idx].strip() if idx < len(headers) else f"col{idx}"
+                            std_h = HEADER_MAP.get(h, h)
+                            val = cell.strip()
+                            if std_h in ("출금", "입금", "잔액"):
+                                val = val.replace(",", "")
+                                if val == "":
+                                    val = "0"
+                            mapped_row.append(val)
+                        data_rows.append(mapped_row)
+                    result['data'] = data_rows
+                    result['total_rows'] = total_count
+                    result['success'] = True
+                    if malformed_rows > 0:
+                        print(f"⚠️ 주의: {malformed_rows}개 행에서 컬럼 수 불일치가 발견되었습니다.")
+                    print(f"📊 전체 데이터 행 {len(data_rows)}개 추출 (전체 {total_count}개 중)")
+            except UnicodeDecodeError as e:
+                fallback_encodings = ['cp949', 'euc-kr', 'latin-1']
+                for fallback_encoding in fallback_encodings:
+                    try:
+                        with open(file_path, 'r', encoding=fallback_encoding, newline='') as csvfile:
+                            csvfile.read(100)
+                            result['error'] = f"인코딩 오류: 파일이 {encoding} 형식이 아닙니다. {fallback_encoding} 인코딩을 시도해보세요."
+                            return result
+                    except:
+                        continue
+                result['error'] = f"인코딩 오류: {e}. 파일이 UTF-8 형식이 아니며 자동 감지에 실패했습니다."
+        except csv.Error as e:
+            result['error'] = f"CSV 형식 오류: {e}. 파일이 올바른 CSV 형식이 아닙니다."
+        except PermissionError:
+            result['error'] = "파일 접근 권한이 없습니다."
+        except Exception as e:
+            result['error'] = f"파일 읽기 오류: {e}"
+        return result
 
 
 # 편의 함수들

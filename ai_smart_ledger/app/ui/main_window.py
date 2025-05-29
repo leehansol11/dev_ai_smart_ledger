@@ -901,54 +901,55 @@ class MainWindow(QMainWindow):
     def parse_and_display_preview(self, file_path: str) -> None:
         """
         슬라이스 1.2 + 1.3 + 1.4: 선택된 파일의 내용을 파싱하여 콘솔에 출력하고 테이블에 표시
-        
         Args:
             file_path: 파싱할 파일 경로 (CSV 또는 Excel)
         """
         print(f"\n🔍 파일 파싱 시작: {file_path}")
-        
         # 슬라이스 2.4: 새 파일 로딩 시 카테고리 변경 히스토리 초기화
         self.clear_category_change_history()
-        
         try:
-            # 파일 확장자 확인
             import os
             file_ext = os.path.splitext(file_path)[1].lower()
-            
-            # 파일 확장자에 따라 적절한 파싱 함수 호출
+            # 1. 미리보기(5행)는 콘솔 출력용으로만 사용
             if file_ext == '.csv':
-                print("📄 CSV 파일 파싱 중...")
-                result = self.file_parser.parse_csv_preview(file_path, max_rows=5)
+                print("📄 CSV 파일 파싱(미리보기) 중...")
+                preview_result = self.file_parser.parse_csv_preview(file_path, max_rows=5)
                 file_type = "CSV"
             elif file_ext in ['.xls', '.xlsx']:
-                print("📊 Excel 파일 파싱 중...")
-                result = self.file_parser.parse_excel_preview(file_path, max_rows=5)
+                print("📊 Excel 파일 파싱(미리보기) 중...")
+                preview_result = self.file_parser.parse_excel_preview(file_path, max_rows=5)
                 file_type = "Excel"
             else:
                 print(f"❌ 지원하지 않는 파일 형식: {file_ext}")
                 return
-            
+            if preview_result['success']:
+                print(f"✅ {file_type} 미리보기 파싱 성공!")
+                self.file_parser.print_csv_preview(preview_result)
+            else:
+                print(f"❌ {file_type} 미리보기 파싱 실패: {preview_result['error']}")
+            # 2. 전체 데이터 파싱해서 테이블에 표시
+            if file_ext == '.csv':
+                print("📄 CSV 파일 전체 데이터 파싱 중...")
+                result = self.file_parser.parse_csv_all(file_path)
+                file_type = "CSV"
+            elif file_ext in ['.xls', '.xlsx']:
+                # parse_excel_all이 없다면, parse_excel_preview(max_rows=99999)로 대체
+                print("📊 Excel 파일 전체 데이터 파싱 중...")
+                result = self.file_parser.parse_excel_preview(file_path, max_rows=99999)
+                file_type = "Excel"
+            else:
+                return
             if result['success']:
-                print(f"✅ {file_type} 파싱 성공!")
-                
-                # 슬라이스 1.2: 콘솔에 파싱 결과 출력
-                self.file_parser.print_csv_preview(result)
-                
-                # 현재 선택된 파일 경로 저장
+                print(f"✅ {file_type} 전체 데이터 파싱 성공!")
                 self.selected_file_path = file_path
-                
                 print(f"📝 총 {result['total_rows']}개의 데이터 행 발견")
                 print(f"📊 {len(result['headers'])}개의 컬럼 발견: {', '.join(result['headers'])}")
-                
-                # 슬라이스 1.3: 테이블에 데이터 표시
                 if self.transactions_table is not None:
                     self.display_csv_data_in_table(result)
                     print("🔄 거래내역 화면으로 자동 전환")
                     self.show_transactions_screen()
-                
             else:
-                print(f"❌ {file_type} 파싱 실패: {result['error']}")
-                
+                print(f"❌ {file_type} 전체 데이터 파싱 실패: {result['error']}")
         except Exception as e:
             print(f"❌ 파싱 중 예외 발생: {e}")
 
