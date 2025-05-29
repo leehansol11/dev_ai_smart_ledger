@@ -21,8 +21,9 @@ from datetime import datetime
 from ..core.file_handler import FileHandler
 from ..core.file_parser import FileParser
 from ..core.progress_saver import ProgressSaver
-from ..db.crud import get_categories_for_dropdown
+from ..db.crud import get_categories_for_dropdown, get_setting
 from ..db.database import DatabaseManager
+from .settings_dialog import SettingsDialog
 
 
 class MainWindow(QMainWindow):
@@ -63,6 +64,13 @@ class MainWindow(QMainWindow):
         
         # 슬라이스 2.5: 중간 저장 버튼 (나중에 초기화됨)
         self.save_progress_button = None
+
+        # 슬라이스 3.1: 프로그램 시작 시 저장된 API 키 로드
+        self.api_key = get_setting("chatgpt_api_key")
+        if self.api_key:
+            print("✅ 프로그램 시작 시 API 키 로드 완료")
+        else:
+            print("⚠️ 저장된 API 키가 없습니다. 설정에서 입력해주세요.")
         
         self.init_ui()
         
@@ -814,7 +822,7 @@ class MainWindow(QMainWindow):
         tools_settings_action = QAction('설정...', self)
         tools_settings_action.setShortcut('Ctrl+,')
         tools_settings_action.setStatusTip('프로그램 설정을 변경합니다')
-        tools_settings_action.triggered.connect(self.show_settings_screen)  # 화면 전환 연결
+        tools_settings_action.triggered.connect(self.open_settings_dialog)  # 설정 대화 상자 열기
         tools_menu.addAction(tools_settings_action)
         
         # 4. 도움말 메뉴
@@ -831,6 +839,14 @@ class MainWindow(QMainWindow):
         help_about_action.setStatusTip('프로그램 정보를 표시합니다')
         help_menu.addAction(help_about_action)
     
+    def open_settings_dialog(self):
+        """
+        설정 대화 상자를 엽니다.
+        """
+        print("⚙️ 설정 대화 상자 열기 요청")
+        dialog = SettingsDialog(self) # 메인 윈도우를 부모로 설정
+        dialog.exec() # 모달 방식으로 실행
+
     def parse_and_display_preview(self, file_path: str) -> None:
         """
         슬라이스 1.2 + 1.3 + 1.4: 선택된 파일의 내용을 파싱하여 콘솔에 출력하고 테이블에 표시

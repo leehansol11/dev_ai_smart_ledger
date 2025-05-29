@@ -541,4 +541,75 @@ def insert_transaction(transaction_data: Dict[str, Any]) -> Optional[int]:
         
     except Exception as e:
         print(f"❌ 거래내역 삽입 중 오류 발생: {e}")
-        return None 
+        return None
+
+
+def save_setting(key: str, value: Any) -> bool:
+    """
+    설정 값을 settings 테이블에 저장하거나 업데이트합니다.
+    
+    Args:
+        key (str): 설정 키 (예: 'chatgpt_api_key'). settings 테이블의 setting_key 컬럼에 해당합니다.
+        value (Any): 설정 값. settings 테이블의 setting_value 컬럼에 해당합니다.
+                     SQLite는 TEXT, INTEGER, REAL, BLOB, NULL 타입을 지원합니다.
+                     복잡한 객체는 JSON 등으로 직렬화하여 저장해야 합니다.
+    
+    Returns:
+        bool: 저장 성공 시 True, 실패 시 False
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # UPSERT 기능 사용: setting_key가 이미 존재하면 setting_value 업데이트, 없으면 새 행 삽입
+        # setting_type은 일단 'string'으로 하드코딩하거나 기본값 사용
+        query = """
+        INSERT INTO settings (setting_key, setting_value, setting_type)
+        VALUES (?, ?, ?)
+        ON CONFLICT(setting_key) DO UPDATE SET
+        setting_value = excluded.setting_value,
+        updated_at = CURRENT_TIMESTAMP
+        """
+        
+        # SQLite는 자동으로 일부 타입을 변환하지만, 명시적으로 문자열로 저장하는 것이 안전합니다.
+        # setting_type은 일단 'string'으로 저장합니다.
+        cursor.execute(query, (key, str(value), 'string'))
+        conn.commit()
+        
+        print(f"✅ 설정 '{key}' 저장/업데이트 성공")
+        return True
+        
+    except Exception as e:
+        print(f"❌ 설정 '{key}' 저장/업데이트 중 오류 발생: {e}")
+        return False
+
+
+def get_setting(key: str) -> Optional[str]:
+    """
+    settings 테이블에서 설정 값을 조회합니다.
+    
+    Args:
+        key (str): 조회할 설정 키. settings 테이블의 setting_key 컬럼에 해당합니다.
+    
+    Returns:
+        Optional[str]: 설정 값 (문자열 형태) 또는 None (키가 없는 경우)
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = "SELECT setting_value FROM settings WHERE setting_key = ?"
+        
+        cursor.execute(query, (key,))
+        result = cursor.fetchone()
+        
+        if result:
+            print(f"✅ 설정 '{key}' 조회 성공: {result[0]}")
+            return result[0] # 값 반환 (TEXT 형태)
+        else:
+            print(f"⚠️ 설정 '{key}'를 찾을 수 없습니다")
+            return None
+        
+    except Exception as e:
+        print(f"❌ 설정 '{key}' 조회 중 오류 발생: {e}")
+        # 오류 발생 시에도 None을 반환하거나, 필요에 따라 예외를 다시 발생시킬 수 있습니다. 

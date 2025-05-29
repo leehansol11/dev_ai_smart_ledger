@@ -160,7 +160,6 @@ def insert_default_settings():
     
     # 기본 설정 데이터
     default_settings = [
-        ("openai_api_key", "", "string", "OpenAI API 키"),
         ("transfer_time_range", "60", "integer", "계좌 간 이체 시간 허용 범위 (분)"),
         ("ai_learning_version", "1.0", "string", "AI 학습 데이터 현재 활성 버전 정보"),
         ("window_width", "1200", "integer", "마지막 창 너비"),

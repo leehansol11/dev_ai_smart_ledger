@@ -8,13 +8,26 @@ class DatabaseManager:
     def __init__(self, db_name="AISmartLedger.db"):
         """
         데이터베이스 매니저 초기화
+        환경 변수 DATABASE_URL이 설정되어 있으면 해당 경로를 사용하고,
+        없으면 기본 db_name을 사용하여 프로젝트 최상위 폴더에 DB 파일을 생성합니다.
         
         Args:
-            db_name: 데이터베이스 파일명 (기본값: AISmartLedger.db)
+            db_name: 환경 변수가 설정되지 않았을 때 사용할 데이터베이스 파일명 (기본값: AISmartLedger.db)
         """
-        # 프로젝트 최상위 폴더에 DB 파일 생성
-        project_root = Path(__file__).parent.parent.parent.parent
-        self.db_path = project_root / db_name
+        # 환경 변수에서 DB 경로 확인
+        db_url = os.getenv('DATABASE_URL')
+        
+        if db_url:
+            # 환경 변수에 경로가 있으면 해당 경로 사용
+            self.db_path = Path(db_url)
+            print(f"✅ 환경 변수 DATABASE_URL에서 DB 경로 로드: {self.db_path}")
+        else:
+            # 환경 변수가 없으면 기본 db_name을 사용하여 프로젝트 최상위 폴더에 DB 파일 생성
+            # 프로젝트 최상위 폴더 계산: 현재 파일 -> db -> app -> ai_smart_ledger -> project_root
+            project_root = Path(__file__).parent.parent.parent.parent
+            self.db_path = project_root / db_name
+            print(f"✅ 환경 변수 설정 없음. 기본 DB 경로 사용: {self.db_path}")
+            
         self.connection = None
     
     def create_database(self):
