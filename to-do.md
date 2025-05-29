@@ -174,11 +174,11 @@ ai_smart_ledger/
 ### 슬라이스 3.1: ChatGPT API 키 입력 UI 및 저장
 
 - **🎯 목표:** 사용자가 설정 화면에서 자신의 ChatGPT API 키를 입력하고 저장할 수 있다.
-- [ ] **UI:** 설정 창(`QDialog` 또는 별도 화면)에 API 키 입력 필드 (`QLineEdit`) 및 저장 버튼 추가 [PRD 2.5.E]
-- [ ] **로직:** 입력된 API 키를 `settings` 테이블에 안전하게 저장/업데이트하는 로직 (`app/db/crud.py`)
-- [ ] **로직:** 프로그램 시작 시 `settings` 테이블에서 API 키를 로드하여 내부 변수에 보관
-- [ ] **테스트:** API 키 입력 및 저장 후, 재시작 시에도 키가 유지되는지 확인 (DB 확인)
-- [ ] **커밋:** "Feat: Implement UI and logic to save ChatGPT API key in settings (Slice 3.1)"
+- [X] **UI:** 설정 창(`QDialog` 또는 별도 화면)에 API 키 입력 필드 (`QLineEdit`) 및 저장 버튼 추가 [PRD 2.5.E]
+- [X] **로직:** 입력된 API 키를 `settings` 테이블에 안전하게 저장/업데이트하는 로직 (`app/db/crud.py`)
+- [X] **로직:** 프로그램 시작 시 `settings` 테이블에서 API 키를 로드하여 내부 변수에 보관
+- [X] **테스트:** API 키 입력 및 저장 후, 재시작 시에도 키가 유지되는지 확인 (DB 확인)
+- [X] **커밋:** "Feat: Implement UI and logic to save ChatGPT API key in settings (Slice 3.1)"
 
 ### 슬라이스 3.2: 선택된 거래 내역 1건에 대해 API로 카테고리 추천 요청 (콘솔 출력)
 
