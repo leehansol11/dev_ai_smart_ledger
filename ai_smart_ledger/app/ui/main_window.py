@@ -9,14 +9,20 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QStackedWidget, 
     QMenuBar, QMenu, QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QHBoxLayout, QHeaderView, QDialog,
-    QTextEdit, QDialogButtonBox, QScrollArea, QComboBox, QListView
+    QTextEdit, QDialogButtonBox, QScrollArea, QComboBox, QListView,
+    QMessageBox
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QFont, QPixmap
+import os
+import hashlib
+from datetime import datetime
 
 from ..core.file_handler import FileHandler
 from ..core.file_parser import FileParser
+from ..core.progress_saver import ProgressSaver
 from ..db.crud import get_categories_for_dropdown
+from ..db.database import DatabaseManager
 
 
 class MainWindow(QMainWindow):
@@ -31,8 +37,16 @@ class MainWindow(QMainWindow):
         # 슬라이스 1.2: 파일 파서 초기화
         self.file_parser = FileParser()
         
+        # 슬라이스 2.5: 중간 저장 기능 초기화
+        self.database_manager = DatabaseManager()
+        progress_file_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'progress.json')
+        self.progress_saver = ProgressSaver(self.database_manager, progress_file_path)
+        
         # 현재 선택된 파일 경로 저장
         self.selected_file_path = None
+        
+        # 슬라이스 2.5: 현재 파일 해시 저장 (파일 일관성 검증용)
+        self.current_file_hash = None
         
         # 슬라이스 1.3: 거래내역 테이블 위젯 초기화
         self.transactions_table = None
@@ -47,7 +61,13 @@ class MainWindow(QMainWindow):
         # 슬라이스 2.4: 실행 취소 버튼 (나중에 초기화됨)
         self.undo_button = None
         
+        # 슬라이스 2.5: 중간 저장 버튼 (나중에 초기화됨)
+        self.save_progress_button = None
+        
         self.init_ui()
+        
+        # 슬라이스 2.5: 프로그램 시작 시 저장된 진행 상태가 있는지 확인
+        self.check_and_restore_progress_on_startup()
         
     def init_ui(self):
         """UI 초기화"""
@@ -264,6 +284,34 @@ class MainWindow(QMainWindow):
         self.undo_button.setEnabled(False)  # 초기에는 비활성화
         file_info_layout.addWidget(self.undo_button)
         
+        # 슬라이스 2.5: 중간 저장 버튼 추가
+        self.save_progress_button = QPushButton("💾 중간 저장")
+        self.save_progress_button.setStyleSheet("""
+            QPushButton {
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px 20px;
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                margin: 10px;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+            QPushButton:pressed {
+                background-color: #1e8449;
+            }
+            QPushButton:disabled {
+                background-color: #bdc3c7;
+                color: #7f8c8d;
+            }
+        """)
+        self.save_progress_button.clicked.connect(self.on_save_progress_clicked)
+        self.save_progress_button.setEnabled(False)  # 파일이 로드되기 전까지는 비활성화
+        file_info_layout.addWidget(self.save_progress_button)
+        
         # 파일 경로 레이블 (거래내역 화면용)
         self.transactions_file_label = QLabel("파일을 선택해주세요.")
         self.transactions_file_label.setStyleSheet("""
@@ -383,6 +431,9 @@ class MainWindow(QMainWindow):
             print(f"✅ 테이블 데이터 표시 완료: {len(data)}행 x {len(headers)}열")
             
             self.add_category_comboboxes_to_table()
+            
+            # 슬라이스 2.5: 파일 로드 완료 후 중간 저장 버튼 활성화
+            self.enable_save_progress_button()
             
         except Exception as e:
             print(f"❌ 테이블 데이터 표시 중 오류: {e}")
@@ -1052,3 +1103,293 @@ class MainWindow(QMainWindow):
         </div>
         </div>
         """ 
+
+    def check_and_restore_progress_on_startup(self):
+        """
+        슬라이스 2.5: 프로그램 시작 시 저장된 진행 상태가 있는지 확인
+        """
+        try:
+            # 저장된 진행 상태 로드
+            progress_data = self.progress_saver.load_progress()
+            
+            if progress_data:
+                print("📂 저장된 진행 상태를 발견했습니다!")
+                
+                # 진행 상태 요약 정보 표시
+                summary = self.progress_saver.get_progress_summary()
+                if summary:
+                    print(f"📊 파일: {summary['file_name']}")
+                    print(f"📈 진행률: {summary['progress_percentage']:.1f}% ({summary['processed_rows']}/{summary['total_rows']})")
+                    print(f"⏰ 마지막 저장: {summary['last_saved_time']}")
+                
+                # 사용자에게 복원 여부 확인
+                reply = QMessageBox.question(
+                    self, 
+                    "진행 상태 복원", 
+                    f"이전 작업 진행 상태가 있습니다.\n\n"
+                    f"파일: {summary['file_name'] if summary else '알 수 없음'}\n"
+                    f"진행률: {summary['progress_percentage']:.1f}% ({summary['processed_rows']}/{summary['total_rows']})\n"
+                    f"마지막 저장: {summary['last_saved_time'] if summary else '알 수 없음'}\n\n"
+                    f"이전 작업을 이어서 하시겠습니까?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes
+                )
+                
+                if reply == QMessageBox.Yes:
+                    self.restore_progress_from_data(progress_data)
+                else:
+                    # 사용자가 거부한 경우 진행 상태 삭제
+                    self.progress_saver.clear_progress()
+                    print("🗑️ 이전 진행 상태를 삭제했습니다")
+            else:
+                print("📝 저장된 진행 상태가 없습니다")
+                
+        except Exception as e:
+            print(f"❌ 진행 상태 복원 중 오류 발생: {e}")
+
+    def on_save_progress_clicked(self):
+        """
+        슬라이스 2.5: 중간 저장 버튼 클릭 이벤트 처리
+        """
+        try:
+            if not self.selected_file_path:
+                QMessageBox.warning(self, "경고", "저장할 파일이 선택되지 않았습니다.")
+                return
+            
+            # 현재 진행 상태 데이터 수집
+            progress_data = self.collect_current_progress_data()
+            
+            if not progress_data:
+                QMessageBox.warning(self, "경고", "저장할 진행 상태 데이터가 없습니다.")
+                return
+            
+            # 진행 상태 저장
+            success = self.progress_saver.save_progress(progress_data)
+            
+            if success:
+                # 백업 생성 로직 제거 - 사용자가 필요할 때만 수동으로 백업
+                # backup_path = self.progress_saver.create_backup()
+                
+                # 백업 파일 정보를 별도로 구성 (f-string 내 백슬래시 문제 해결) - 제거
+                # backup_info = f"\n백업 파일: {backup_path}" if backup_path else ""
+                
+                QMessageBox.information(
+                    self, 
+                    "저장 완료", 
+                    f"진행 상태가 성공적으로 저장되었습니다!\n\n"
+                    f"처리된 행: {progress_data['processed_rows']}/{progress_data['total_rows']}\n"
+                    f"진행률: {(progress_data['processed_rows']/progress_data['total_rows']*100):.1f}%"
+                )
+                print(f"✅ 진행 상태 저장 완료: {progress_data['processed_rows']}/{progress_data['total_rows']} 행")
+            else:
+                QMessageBox.critical(self, "오류", "진행 상태 저장에 실패했습니다.")
+                
+        except Exception as e:
+            print(f"❌ 진행 상태 저장 중 오류: {e}")
+            QMessageBox.critical(self, "오류", f"진행 상태 저장 중 오류가 발생했습니다:\n{str(e)}")
+
+    def collect_current_progress_data(self):
+        """
+        슬라이스 2.5: 현재 진행 상태 데이터를 수집
+        
+        Returns:
+            Dict: 진행 상태 데이터
+        """
+        try:
+            if not self.selected_file_path or not self.transactions_table:
+                return None
+            
+            # 파일 해시 계산
+            file_hash = self.calculate_file_hash(self.selected_file_path)
+            
+            # 테이블에서 거래 데이터 수집
+            transactions = []
+            total_rows = self.transactions_table.rowCount()
+            processed_rows = 0
+            
+            for row in range(total_rows):
+                transaction_data = {
+                    'row_index': row,
+                    'transaction_id': f'txn_{row:04d}',  # 임시 ID
+                    'is_confirmed': row in self.transaction_categories
+                }
+                
+                # 테이블에서 거래 정보 추출
+                for col in range(self.transactions_table.columnCount()):
+                    header_item = self.transactions_table.horizontalHeaderItem(col)
+                    if header_item:
+                        header_name = header_item.text()
+                        item = self.transactions_table.item(row, col)
+                        if item:
+                            transaction_data[header_name] = item.text()
+                
+                # 사용자 확정 카테고리 추가
+                if row in self.transaction_categories:
+                    transaction_data['user_confirmed_category'] = self.transaction_categories[row]
+                    processed_rows += 1
+                else:
+                    transaction_data['user_confirmed_category'] = None
+                
+                transactions.append(transaction_data)
+            
+            # 현재 작업 위치 (마지막으로 분류된 행)
+            current_row_index = max(self.transaction_categories.keys()) if self.transaction_categories else -1
+            
+            progress_data = {
+                'file_path': self.selected_file_path,
+                'file_hash': file_hash,
+                'total_rows': total_rows,
+                'processed_rows': processed_rows,
+                'current_row_index': current_row_index,
+                'timestamp': datetime.now().isoformat(),
+                'transactions': transactions
+            }
+            
+            return progress_data
+            
+        except Exception as e:
+            print(f"❌ 진행 상태 데이터 수집 중 오류: {e}")
+            return None
+
+    def calculate_file_hash(self, file_path: str) -> str:
+        """
+        슬라이스 2.5: 파일의 해시값을 계산하여 일관성 검증에 사용
+        
+        Args:
+            file_path: 해시를 계산할 파일 경로
+            
+        Returns:
+            str: 파일의 MD5 해시값
+        """
+        try:
+            hash_md5 = hashlib.md5()
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+            return hash_md5.hexdigest()
+        except Exception as e:
+            print(f"❌ 파일 해시 계산 중 오류: {e}")
+            return ""
+
+    def restore_progress_from_data(self, progress_data: dict):
+        """
+        슬라이스 2.5: 저장된 진행 상태 데이터로부터 UI 복원
+        
+        Args:
+            progress_data: 복원할 진행 상태 데이터
+        """
+        try:
+            file_path = progress_data.get('file_path')
+            file_hash = progress_data.get('file_hash')
+            
+            # 파일 존재 여부 확인
+            if not os.path.exists(file_path):
+                QMessageBox.warning(
+                    self, 
+                    "파일 없음", 
+                    f"저장된 파일을 찾을 수 없습니다:\n{file_path}\n\n"
+                    f"파일 경로가 변경되었거나 파일이 삭제되었을 수 있습니다."
+                )
+                return
+            
+            # 파일 일관성 검증
+            current_hash = self.calculate_file_hash(file_path)
+            if current_hash != file_hash:
+                reply = QMessageBox.question(
+                    self,
+                    "파일 변경 감지",
+                    f"파일이 마지막 저장 이후 변경된 것 같습니다.\n\n"
+                    f"그래도 진행 상태를 복원하시겠습니까?\n"
+                    f"(데이터 불일치가 발생할 수 있습니다)",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No
+                )
+                
+                if reply == QMessageBox.No:
+                    return
+            
+            # 파일 로드 및 UI 복원
+            self.selected_file_path = file_path
+            self.current_file_hash = current_hash
+            
+            # 파일 파싱 및 테이블 표시
+            self.parse_and_display_preview(file_path)
+            
+            # 카테고리 선택 상태 복원
+            transactions = progress_data.get('transactions', [])
+            for transaction in transactions:
+                row_index = transaction.get('row_index')
+                user_category = transaction.get('user_confirmed_category')
+                
+                if row_index is not None and user_category:
+                    self.transaction_categories[row_index] = user_category
+                    
+                    # UI에서 해당 ComboBox 찾아서 설정
+                    self.restore_combobox_selection(row_index, user_category)
+            
+            # 중간 저장 버튼 활성화
+            if self.save_progress_button:
+                self.save_progress_button.setEnabled(True)
+            
+            # 거래내역 화면으로 전환
+            self.show_transactions_screen()
+            
+            print(f"✅ 진행 상태 복원 완료: {len(self.transaction_categories)}개 카테고리 복원됨")
+            
+        except Exception as e:
+            print(f"❌ 진행 상태 복원 중 오류: {e}")
+            QMessageBox.critical(self, "오류", f"진행 상태 복원 중 오류가 발생했습니다:\n{str(e)}")
+
+    def restore_combobox_selection(self, row_index: int, category: str):
+        """
+        슬라이스 2.5: 특정 행의 ComboBox 선택 상태를 복원
+        
+        Args:
+            row_index: 행 번호
+            category: 선택할 카테고리명
+        """
+        try:
+            table = self.transactions_table
+            if not table or row_index >= table.rowCount():
+                return
+            
+            # "사용자 확정 카테고리" 열 찾기
+            category_column_index = -1
+            for col in range(table.columnCount()):
+                header_item = table.horizontalHeaderItem(col)
+                if header_item and header_item.text() == "사용자 확정 카테고리":
+                    category_column_index = col
+                    break
+            
+            if category_column_index == -1:
+                return
+            
+            # ComboBox 찾기 및 선택 상태 설정
+            combobox = table.cellWidget(row_index, category_column_index)
+            if isinstance(combobox, QComboBox):
+                # 시그널 연결을 일시적으로 해제
+                combobox.currentTextChanged.disconnect()
+                
+                # 카테고리 선택
+                for i in range(combobox.count()):
+                    if combobox.itemText(i) == category:
+                        combobox.setCurrentIndex(i)
+                        break
+                
+                # 시그널 다시 연결
+                combobox.currentTextChanged.connect(
+                    lambda text, r=row_index: self.on_category_selection_changed(r, text)
+                )
+                
+                print(f"✅ 행 {row_index + 1} 카테고리 복원: {category}")
+                
+        except Exception as e:
+            print(f"❌ ComboBox 선택 상태 복원 중 오류 (행 {row_index}): {e}")
+
+    def enable_save_progress_button(self):
+        """
+        슬라이스 2.5: 중간 저장 버튼 활성화 (파일 로드 후 호출)
+        """
+        if self.save_progress_button:
+            self.save_progress_button.setEnabled(True)
+            print("✅ 중간 저장 버튼이 활성화되었습니다") 
