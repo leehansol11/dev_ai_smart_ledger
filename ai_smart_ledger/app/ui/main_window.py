@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QMessageBox
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QFont, QPixmap
+from PySide6.QtGui import QAction, QFont, QPixmap, QColor, QBrush
 import os
 import hashlib
 from datetime import datetime
@@ -21,14 +21,20 @@ from datetime import datetime
 from ..core.file_handler import FileHandler
 from ..core.file_parser import FileParser
 from ..core.progress_saver import ProgressSaver
-from ..db.crud import get_categories_for_dropdown, get_setting
+from ..db.crud import get_categories_for_dropdown, get_setting, get_all_categories, update_transaction_category
 from ..db.database import DatabaseManager
 from .settings_dialog import SettingsDialog
+from ai_smart_ledger.app.core.ai_classifier import suggest_category_for_transaction
+from ai_smart_ledger.app.db import crud
 
 
 class MainWindow(QMainWindow):
     """AI 스마트 가계부 메인 윈도우"""
     
+    # patch.object를 위한 클래스 레벨 기본값
+    _update_transaction_category = staticmethod(lambda *a, **kw: None)
+    _get_all_categories = staticmethod(lambda: [])
+
     def __init__(self):
         super().__init__()
         
@@ -71,6 +77,8 @@ class MainWindow(QMainWindow):
             print("✅ 프로그램 시작 시 API 키 로드 완료")
         else:
             print("⚠️ 저장된 API 키가 없습니다. 설정에서 입력해주세요.")
+        
+        self.row_to_transaction_id = {}  # row 인덱스 → transaction_id 매핑 추가
         
         self.init_ui()
         
@@ -263,6 +271,33 @@ class MainWindow(QMainWindow):
         """)
         self.transactions_load_button.clicked.connect(self.on_load_file_clicked)
         file_info_layout.addWidget(self.transactions_load_button)
+
+        # [추가] AI 추천 적용 버튼
+        self.ai_suggestion_button = QPushButton("🤖 AI 추천 적용")
+        self.ai_suggestion_button.setStyleSheet("""
+            QPushButton {
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px 20px;
+                background-color: #8e44ad;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                margin: 10px;
+            }
+            QPushButton:hover {
+                background-color: #6c3483;
+            }
+            QPushButton:pressed {
+                background-color: #512e5f;
+            }
+            QPushButton:disabled {
+                background-color: #bdc3c7;
+                color: #7f8c8d;
+            }
+        """)
+        self.ai_suggestion_button.clicked.connect(self.on_ai_suggestion_button_clicked)
+        file_info_layout.addWidget(self.ai_suggestion_button)
         
         # 슬라이스 2.4: 실행 취소 버튼 추가
         self.undo_button = QPushButton("⏪ 실행 취소")
@@ -418,6 +453,13 @@ class MainWindow(QMainWindow):
                 for col_idx, cell_data in enumerate(row_data):
                     item = QTableWidgetItem(str(cell_data))
                     self.transactions_table.setItem(row_idx, col_idx, item)
+                
+                # transaction_id가 데이터에 포함되어 있으면 저장
+                if 'transaction_id' in headers:
+                    tidx = headers.index('transaction_id')
+                    self.row_to_transaction_id[row_idx] = row_data[tidx]
+                else:
+                    self.row_to_transaction_id[row_idx] = None
             
             # 컬럼 크기 자동 조정
             self.transactions_table.resizeColumnsToContents()
@@ -616,33 +658,42 @@ class MainWindow(QMainWindow):
             row (int): 변경된 행 번호
             selected_category (str): 선택된 카테고리명
         """
-        # 슬라이스 2.4: 이전 카테고리 값 저장 (실행 취소용)
         previous_category = self.transaction_categories.get(row, "카테고리를 선택하세요")
         
-        # 기본 선택 항목이 아닌 경우에만 내부 데이터에 저장
         if selected_category != "카테고리를 선택하세요":
-            # 슬라이스 2.4: 히스토리에 변경 사항 저장 (변경이 있는 경우에만)
             if previous_category != selected_category:
                 self.save_category_change_to_history(row, previous_category, selected_category)
             
-            # 선택된 카테고리를 내부 데이터 구조에 저장
             self.transaction_categories[row] = selected_category
             print(f"📝 행 {row + 1}의 카테고리가 '{selected_category}'로 변경됨")
             print(f"🔄 내부 데이터 업데이트: 행 {row} -> '{selected_category}'")
+            
+            # --- DB 연동 추가 ---
+            transaction_id = self.row_to_transaction_id.get(row)
+            if transaction_id:
+                # 카테고리명 → category_id 변환
+                all_cats = MainWindow._get_all_categories()
+                # full_path 생성
+                def build_path(cid):
+                    path = []
+                    id_map = {c[0]: c for c in all_cats}
+                    cur = id_map.get(cid)
+                    while cur:
+                        path.insert(0, cur[1])
+                        pid = cur[2]
+                        cur = id_map.get(pid) if pid else None
+                    return " > ".join(path)
+                cat_map = {build_path(c[0]): c[0] for c in all_cats}
+                category_id = cat_map.get(selected_category)
+                if category_id:
+                    MainWindow._update_transaction_category(int(transaction_id), int(category_id))
         else:
-            # 기본 선택 항목으로 되돌린 경우 내부 데이터에서 제거
             if row in self.transaction_categories:
-                # 슬라이스 2.4: 히스토리에 변경 사항 저장 (삭제도 변경으로 취급)
                 self.save_category_change_to_history(row, previous_category, selected_category)
-                
-                del self.transaction_categories[row]
             print(f"⚪ 행 {row + 1}의 카테고리 선택이 초기화됨")
             print(f"🔄 내부 데이터에서 행 {row} 제거됨")
         
-        # 슬라이스 2.4: 실행 취소 버튼 상태 업데이트
         self.update_undo_button_state()
-        
-        # 현재 내부 데이터 상태 출력 (디버깅용)
         print(f"📊 현재 저장된 카테고리: {self.transaction_categories}")
     
     def save_category_change_to_history(self, row: int, previous_category: str, current_category: str):
@@ -1394,7 +1445,7 @@ class MainWindow(QMainWindow):
                 
                 # 시그널 다시 연결
                 combobox.currentTextChanged.connect(
-                    lambda text, r=row_index: self.on_category_selection_changed(r, text)
+                    lambda text, rr=r: self.on_category_selection_changed(rr, text)
                 )
                 
                 print(f"✅ 행 {row_index + 1} 카테고리 복원: {category}")
@@ -1408,4 +1459,146 @@ class MainWindow(QMainWindow):
         """
         if self.save_progress_button:
             self.save_progress_button.setEnabled(True)
-            print("✅ 중간 저장 버튼이 활성화되었습니다") 
+            print("✅ 중간 저장 버튼이 활성화되었습니다")
+
+    def add_ai_suggestion_column_to_table(self, confidence_mode=False, with_confirm_buttons=False):
+        """
+        슬라이스 3.3: 거래내역 테이블에 'AI 추천 카테고리' 열을 추가하고, 각 행에 AI 추천값을 표시합니다.
+        confidence_mode=True일 때 (추천값, 신뢰도) 튜플을 받아 신뢰도에 따라 셀 배경색을 다르게 설정합니다.
+        with_confirm_buttons=True일 때 각 행에 Y/N 버튼을 추가하고, 버튼 동작에 따라 사용자 확정 카테고리 열을 업데이트합니다.
+        """
+        from PySide6.QtGui import QColor, QBrush
+        from PySide6.QtWidgets import QPushButton, QWidget, QHBoxLayout, QComboBox, QListView
+        table = self.transactions_table
+        if table is None or table.rowCount() == 0:
+            return
+
+        # 'AI 추천 카테고리' 열이 이미 있으면 중복 추가 방지
+        ai_col_idx = None
+        for col in range(table.columnCount()):
+            header_item = table.horizontalHeaderItem(col)
+            if header_item and header_item.text() == "AI 추천 카테고리":
+                ai_col_idx = col
+                break
+        if ai_col_idx is None:
+            ai_col_idx = table.columnCount()
+            table.setColumnCount(ai_col_idx + 1)
+            table.setHorizontalHeaderItem(ai_col_idx, QTableWidgetItem("AI 추천 카테고리"))
+
+        # '사용자 확정 카테고리' 열이 없으면 추가
+        user_col_idx = None
+        for col in range(table.columnCount()):
+            header_item = table.horizontalHeaderItem(col)
+            if header_item and header_item.text() == "사용자 확정 카테고리":
+                user_col_idx = col
+                break
+        if user_col_idx is None:
+            user_col_idx = table.columnCount()
+            table.setColumnCount(user_col_idx + 1)
+            table.setHorizontalHeaderItem(user_col_idx, QTableWidgetItem("사용자 확정 카테고리"))
+
+        # 카테고리 목록 미리 조회
+        from ai_smart_ledger.app.db.crud import get_categories_for_dropdown
+        categories = get_categories_for_dropdown() or []
+
+        # [수정] 헤더명 → 컬럼 인덱스 매핑
+        header_map = {table.horizontalHeaderItem(i).text(): i for i in range(table.columnCount())}
+
+        for row in range(table.rowCount()):
+            # [수정] 각 컬럼 인덱스를 헤더명으로 안전하게 가져옴
+            description_idx = header_map.get('적요', -1)
+            amount_out_idx = header_map.get('출금', -1)
+            amount_in_idx = header_map.get('입금', -1)
+            date_idx = header_map.get('날짜', -1)
+            # description
+            description = table.item(row, description_idx).text() if description_idx != -1 and table.item(row, description_idx) else ''
+            # 출금
+            amount_out = 0
+            if amount_out_idx != -1 and table.item(row, amount_out_idx) and table.item(row, amount_out_idx).text():
+                try:
+                    amount_out = int(table.item(row, amount_out_idx).text().replace(',', ''))
+                except ValueError:
+                    amount_out = 0
+            # 입금
+            amount_in = 0
+            if amount_in_idx != -1 and table.item(row, amount_in_idx) and table.item(row, amount_in_idx).text():
+                try:
+                    amount_in = int(table.item(row, amount_in_idx).text().replace(',', ''))
+                except ValueError:
+                    amount_in = 0
+            # 날짜
+            timestamp = table.item(row, date_idx).text() if date_idx != -1 and table.item(row, date_idx) else ''
+
+            transaction = {
+                'description': description,
+                'amount_out': amount_out,
+                'amount_in': amount_in,
+                'timestamp': timestamp,
+            }
+            try:
+                if confidence_mode or with_confirm_buttons:
+                    result = suggest_category_for_transaction(transaction)
+                    if isinstance(result, tuple) and len(result) == 2:
+                        suggested, confidence = result
+                    else:
+                        suggested, confidence = result, "HIGH"
+                else:
+                    suggested = suggest_category_for_transaction(transaction)
+                    confidence = None
+            except Exception:
+                suggested = ""
+                confidence = None
+            item = QTableWidgetItem(suggested)
+            if confidence_mode or with_confirm_buttons:
+                if confidence == "HIGH":
+                    item.setBackground(QBrush(QColor(200,255,200)))
+                elif confidence == "MEDIUM":
+                    item.setBackground(QBrush(QColor(255,255,180)))
+                elif confidence == "LOW":
+                    item.setBackground(QBrush(QColor(255,200,200)))
+            table.setItem(row, ai_col_idx, item)
+
+            # Y/N 버튼 추가
+            if with_confirm_buttons:
+                yn_widget = QWidget()
+                yn_layout = QHBoxLayout()
+                yn_layout.setContentsMargins(0,0,0,0)
+                btn_yes = QPushButton("예")
+                btn_no = QPushButton("아니요")
+                yn_layout.addWidget(btn_yes)
+                yn_layout.addWidget(btn_no)
+                yn_widget.setLayout(yn_layout)
+                table.setCellWidget(row, ai_col_idx+1, yn_widget)
+
+                # '예' 클릭 시 추천값을 사용자 확정 카테고리 열에 복사
+                def on_yes(checked=False, r=row, val=suggested):
+                    table.setItem(r, user_col_idx, QTableWidgetItem(val))
+                btn_yes.clicked.connect(on_yes)
+
+                # '아니요' 클릭 시 드롭다운(ComboBox) 동적 생성 및 삽입
+                def on_no(checked=False, r=row):
+                    combobox = QComboBox()
+                    view = QListView()
+                    view.setMouseTracking(True)
+                    combobox.setView(view)
+                    combobox.addItem("카테고리를 선택하세요")
+                    for cat in categories:
+                        combobox.addItem(cat)
+                    combobox.setFixedWidth(140)
+                    combobox.setFixedHeight(20)
+                    combobox.currentTextChanged.connect(
+                        lambda text, rr=r: self.on_category_selection_changed(rr, text)
+                    )
+                    table.setCellWidget(r, user_col_idx, combobox)
+                    # 셀 값과 내부 데이터도 명확히 초기화
+                    table.setItem(r, user_col_idx, QTableWidgetItem(""))
+                    if r in self.transaction_categories:
+                        del self.transaction_categories[r]
+                btn_no.clicked.connect(on_no) 
+
+    # [추가] AI 추천 적용 버튼 클릭 이벤트 핸들러
+    def on_ai_suggestion_button_clicked(self):
+        """
+        'AI 추천 적용' 버튼 클릭 시, 테이블에 AI 추천 카테고리/신호등/Y/N 버튼을 추가합니다.
+        """
+        self.add_ai_suggestion_column_to_table(confidence_mode=True, with_confirm_buttons=True) 

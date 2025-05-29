@@ -30,7 +30,7 @@ class AIClassifier:
         
         self.api_key = api_key
         self.base_url = "https://api.openai.com/v1/chat/completions"
-        self.model = "gpt-3.5-turbo"
+        self.model = "gpt-4.1-mini-2025-04-14"
 
 
 def build_category_suggestion_prompt(transaction: Dict[str, Any], categories: List[str]) -> str:
