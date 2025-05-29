@@ -10,7 +10,7 @@ import sys
 import os
 
 # 프로젝트 루트 디렉토리를 Python 경로에 추가
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from ai_smart_ledger.app.core.ai_classifier import print_category_suggestion
 from ai_smart_ledger.app.db.crud import save_setting, get_setting
