@@ -183,12 +183,12 @@ ai_smart_ledger/
 ### 슬라이스 3.2: 선택된 거래 내역 1건에 대해 API로 카테고리 추천 요청 (콘솔 출력)
 
 - **🎯 목표:** 분류 작업 창에서 특정 거래 내역 선택 시, 해당 거래 내용으로 OpenAI API에 카테고리 추천을 요청하고, 그 결과를 콘솔에 출력한다.
-- [ ] **로직:** 저장된 API 키를 사용하여 OpenAI API와 통신하는 기본 모듈 작성 (`app/core/ai_classifier.py`, `requests` 사용) [PRD 3.3]
-- [ ] **로직:** 거래 내역 문자열(적요)과 기본 카테고리 목록을 포함하는 프롬프트 구성 로직 (1차 - 매우 단순하게)
-- [ ] **로직:** 특정 거래 내역 선택 시 (또는 버튼 클릭 시) 위 프롬프트로 API 호출 및 응답(추천 카테고리 텍스트) 수신
-- [ ] **연결:** 수신된 추천 카테고리 텍스트를 콘솔에 출력
-- [ ] **테스트:** 실제 거래 내역으로 API 호출이 성공하고 추천 결과가 콘솔에 찍히는지 확인
-- [ ] **커밋:** "Feat: Request category suggestion from OpenAI API for one transaction and print to console (Slice 3.2)"
+- [x] **로직:** 저장된 API 키를 사용하여 OpenAI API와 통신하는 기본 모듈 작성 (`app/core/ai_classifier.py`, `requests` 사용) [PRD 3.3]
+- [x] **로직:** 거래 내역 문자열(적요)과 기본 카테고리 목록을 포함하는 프롬프트 구성 로직 (1차 - 매우 단순하게)
+- [x] **로직:** 특정 거래 내역 선택 시 (또는 버튼 클릭 시) 위 프롬프트로 API 호출 및 응답(추천 카테고리 텍스트) 수신
+- [x] **연결:** 수신된 추천 카테고리 텍스트를 콘솔에 출력
+- [x] **테스트:** 실제 거래 내역으로 API 호출이 성공하고 추천 결과가 콘솔에 찍히는지 확인
+- [x] **커밋:** "Feat: Request category suggestion from OpenAI API for one transaction and print to console (Slice 3.2)"
 
 ### 슬라이스 3.3: API 추천 카테고리 UI 반영 및 사용자 확인/수동 지정 로직 연결
 
