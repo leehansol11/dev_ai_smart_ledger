@@ -21,6 +21,7 @@ class FileParser:
     def parse_csv_preview(file_path: str, max_rows: int = 5) -> Dict:
         """
         CSV 파일의 첫 N행을 파싱하여 미리보기 데이터 반환
+        (신한은행 등 실제 은행 양식 헤더 자동 매핑 지원)
         
         Args:
             file_path: CSV 파일 경로
@@ -40,6 +41,24 @@ class FileParser:
             'data': [],
             'total_rows': 0,
             'error': None
+        }
+        
+        # [추가] 은행 헤더 → 내부 표준 헤더 매핑
+        HEADER_MAP = {
+            "거래일자": "날짜",
+            "거래시간": "시간",
+            "적요": "적요",
+            "출금(원)": "출금",
+            "입금(원)": "입금",
+            "잔액(원)": "잔액",
+            "거래점": "거래처",
+            # 기존 표준 헤더도 그대로 허용
+            "날짜": "날짜",
+            "시간": "시간",
+            "출금": "출금",
+            "입금": "입금",
+            "잔액": "잔액",
+            "거래처": "거래처",
         }
         
         try:
@@ -85,13 +104,10 @@ class FileParser:
                     # 헤더 행 읽기
                     try:
                         headers = next(reader)
-                        # 헤더 유효성 검증
-                        if not headers or all(not str(h).strip() for h in headers):
-                            result['error'] = "유효한 헤더가 없습니다. 첫 번째 행이 비어있습니다."
-                            return result
-                        
-                        result['headers'] = headers
-                        print(f"📋 헤더 발견: {headers}")
+                        # [수정] 헤더 매핑 적용
+                        mapped_headers = [HEADER_MAP.get(h.strip(), h.strip()) for h in headers]
+                        result['headers'] = mapped_headers
+                        print(f"📋 헤더 발견: {headers} → {mapped_headers}")
                     except StopIteration:
                         result['error'] = "파일이 비어있습니다"
                         return result
@@ -111,8 +127,21 @@ class FileParser:
                             if malformed_rows <= 3:  # 처음 3개 오류만 로깅
                                 print(f"⚠️ {row_num}행: 컬럼 수 불일치 (헤더: {len(headers)}, 데이터: {len(row)})")
                         
+                        # [수정] 데이터 매핑 및 정제
+                        mapped_row = []
+                        for idx, cell in enumerate(row):
+                            h = headers[idx].strip() if idx < len(headers) else f"col{idx}"
+                            std_h = HEADER_MAP.get(h, h)
+                            val = cell.strip()
+                            # 금액/잔액 컬럼은 쉼표 제거, 빈 값 0 처리
+                            if std_h in ("출금", "입금", "잔액"):
+                                val = val.replace(",", "")
+                                if val == "":
+                                    val = "0"
+                            mapped_row.append(val)
+                        
                         if len(data_rows) < max_rows:
-                            data_rows.append(row)
+                            data_rows.append(mapped_row)
                     
                     result['data'] = data_rows
                     result['total_rows'] = total_count
